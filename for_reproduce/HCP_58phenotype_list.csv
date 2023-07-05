@@ -1,0 +1,59 @@
+﻿Description,HCP field
+Visual Episodic Memory,PicSeq_Unadj
+Cognitive Flexibility (DCCS),CardSort_Unadj
+Inhibition (Flanker Task),Flanker_Unadj
+Fluid Intelligence (PMAT),PMAT24_A_CR
+Vocabulary (Pronunciation),ReadEng_Unadj
+Vocabulary (Picture Matching),PicVocab_Unadj
+Processing Speed,ProcSpeed_Unadj
+Delay Discounting,DDisc_AUC_40K
+Spatial Orientation,VSPLOT_TC
+Sustained Attention – Sens.,SCPT_SEN
+Sustained Attention – Spec.,SCPT_SPEC
+Verbal Episodic Memory,IWRD_TOT
+Working Memory (List Sorting),ListSort_Unadj
+Cognitive Status (MMSE),MMSE_Score
+Sleep Quality (PSQI),PSQI_Score
+Walking Endurance,Endurance_Unadj
+Walking Speed,GaitSpeed_Comp
+Manual Dexterity,Dexterity_Unadj
+Grip Strength,Strength_Unadj
+Odor Identification,Odor_Unadj
+Pain Interference Survey,PainInterf_Tscore
+Taste Intensity,Taste_Unadj
+Contrast Sensitivity,Mars_Final
+Emotional Face Matching,Emotion_Task_Face_Acc
+Arithmetic,Language_Task_Math_Avg_Difficulty_Level
+Story Comprehension,Language_Task_Story_Avg_Difficulty_Level
+Relational Processing,Relational_Task_Acc
+Social Cognition – Random,Social_Task_Perc_Random
+Social Cognition – Interaction,Social_Task_Perc_TOM
+Working Memory (N-back),WM_Task_Acc
+Agreeableness (NEO),NEOFAC_A
+Openness (NEO),NEOFAC_O
+Conscientiousness (NEO),NEOFAC_C
+Neuroticism (NEO),NEOFAC_N
+Extraversion (NEO),NEOFAC_E
+Emot. Recog. – Total,ER40_CR
+Emot. Recog. – Angry,ER40ANG
+Emot. Recog. – Fear,ER40FEAR
+Emot. Recog. – Happy,ER40HAP
+Emot. Recog. - Neutral,ER40NOE
+Emot. Recog. – Sad,ER40SAD
+Anger – Affect,AngAffect_Unadj
+Anger – Hostility,AngHostil_Unadj
+Anger – Aggression,AngAggr_Unadj
+Fear – Affect,FearAffect_Unadj
+Fear – Somatic Arousal,FearSomat_Unadj
+Sadness,Sadness_Unadj
+Life Satisfaction,LifeSatisf_Unadj
+Meaning & Purpose,MeanPurp_Unadj
+Positive Affect,PosAffect_Unadj
+Friendship,Friendship_Unadj
+Loneliness,Loneliness_Unadj
+Perceived Hostility,PercHostil_Unadj
+Perceived Rejection,PercReject_Unadj
+Emotional Support,EmotSupp_Unadj
+Instrument Support,InstruSupp_Unadj
+Perceived Stress,PercStress_Unadj
+Self-Efficacy,SelfEff_Unadj
