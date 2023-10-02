@@ -66,7 +66,7 @@ def basic_krr(df, pheno_with_age, k_num, data_file_name, iteration=10, only_test
         kf = KFold(n_splits=5) # K-fold 설정
         r2_scores = []
         krr_model = KernelRidge()
-        # alphas = [0.1, 0.7, 1, 5, 10]
+        # alphas = [1]
         # param_grid = {'alpha':alphas}
         krr_models = []
         # K-fold 로 Iteration 돈다.
@@ -92,15 +92,13 @@ def basic_krr(df, pheno_with_age, k_num, data_file_name, iteration=10, only_test
                 pheno_pred = subset[i].predict(kshot_df)
                 # 여기에서는 Age가 아니라 각 phenotype이지만, 일단은 age라고 해야 한다.
                 pheno_df = pd.DataFrame({'prediction' : pheno_pred, 'Age' : kshot_pheno[:, i]})
-                # r2 = get_cod_score(kshot_pheno[:, i], pheno_pred)
 
                 r2 = get_cod_score(pheno_df)
-                #r2 = get_corr_score(pheno_df)
                 r2_scores_kshot.append(r2)
             max_cod_model.append(r2_scores_kshot.index(max(r2_scores_kshot)))
         max_cod_krr_models = []
         for i in range(len(max_cod_model)):
-            max_cod_krr_models.append(krr_models[i*5+max_cod_model[i]])
+            max_cod_krr_models.append(krr_models[i + 58 * max_cod_model[i]])
         # best cod 추출된 krr model로 k shot age cod 계산 후 best krr node 추출
         kshot_cods = []
         
@@ -108,11 +106,12 @@ def basic_krr(df, pheno_with_age, k_num, data_file_name, iteration=10, only_test
             k_pred = max_cod_krr_models[i].predict(kshot_df)
             k_pred_df = pd.DataFrame({'prediction' : k_pred, 'Age':kshot_age})
             k_age_cod = get_cod_score(k_pred_df)
-            #k_age_cod = get_corr_score(k_pred_df)
             kshot_cods.append(k_age_cod)
+            
         print('max cod index:', kshot_cods.index(max(kshot_cods)))
         max_kshot_cod_idx = kshot_cods.index(max(kshot_cods))
         best_node.append(max_kshot_cod_idx)
+        
         # best krr model로 test
         test_pred = max_cod_krr_models[max_kshot_cod_idx].predict(test_df)
         joblib.dump(max_cod_krr_models[max_kshot_cod_idx], model_pth)
