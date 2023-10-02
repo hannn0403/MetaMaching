@@ -47,7 +47,7 @@ def basic_krr(df, pheno_with_age, k_num, data_file_name, iteration=10, only_test
 
     # Training
     for seed in range(1, iteration+1):
-        model_pth = f"D:/meta_matching_data/model_pth/{data_file_name}/{seed}_krr_{data_file_name}.pkl"
+        model_pth = f"D:/meta_matching_data/model_pth/{data_file_name}/{seed}_krr_{data_file_name}_k_num_{k_num}.pkl"
         print(f'==========================================Iter{seed}==========================================')
         # Random Seed Setting
         set_random_seeds(seed)
@@ -66,19 +66,20 @@ def basic_krr(df, pheno_with_age, k_num, data_file_name, iteration=10, only_test
         kf = KFold(n_splits=5) # K-fold 설정
         r2_scores = []
         krr_model = KernelRidge()
-        alphas = [0.1, 0.7, 1, 5, 10]
-        param_grid = {'alpha':alphas}
+        # alphas = [0.1, 0.7, 1, 5, 10]
+        # param_grid = {'alpha':alphas}
         krr_models = []
         # K-fold 로 Iteration 돈다.
         for train_index, test_index in kf.split(train_df):
             train_df_fold, val_df_fold = train_df[train_index], train_df[test_index]
             train_pheno_fold, val_pheno_fold = train_pheno[train_index], train_pheno[test_index]
             for i in range(train_pheno_fold.shape[1]):
-                krr_model = KernelRidge()
-                grid_search = GridSearchCV(krr_model, param_grid, cv = kf)
-                grid_search.fit(train_df_fold, train_pheno_fold[:, i])
-                best_alpha = grid_search.best_params_['alpha']
-                best_krr = KernelRidge(alpha = best_alpha)
+                # krr_model = KernelRidge()
+                # grid_search = GridSearchCV(krr_model, param_grid, cv = kf)
+                # grid_search.fit(train_df_fold, train_pheno_fold[:, i])
+                # best_alpha = grid_search.best_params_['alpha']
+                # best_krr = KernelRidge(alpha = best_alpha)
+                best_krr = KernelRidge(alpha = 1)
                 best_krr.fit(train_df_fold, train_pheno_fold[:, i])
                 krr_models.append(best_krr) # 모델을 List에 넣는다...?
         # 58개의 phenotype에 대해서 5 fold했고
@@ -122,15 +123,6 @@ def basic_krr(df, pheno_with_age, k_num, data_file_name, iteration=10, only_test
         cods.append(test_age_cod)
         print(f'cod: {test_age_cod:.4f}')
         print(f'corr: {test_age_corr:.4f}')
-
-        ##model load test
-        #loaded_model = joblib.load(model_pth)
-        #test_pred = loaded_model.predict(test_df)
-        #test_pred_df = pd.DataFrame({'prediction' : test_pred, 'Age' : test_age})
-        #test_age_cod = get_cod_score(test_pred_df)
-        #test_age_corr = get_corr_score(test_pred_df)       
-        #print(f'load cod: {test_age_cod:.4f}')
-        #print(f'load corr: {test_age_corr:.4f}')
 
     print('==========================================학습을 완료하였습니다.==========================================')
     print('\n\n')
