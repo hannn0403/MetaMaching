@@ -275,7 +275,7 @@ def advanced_finetuning(df, pheno_with_iq, k_num_list, data_file_name, batch_siz
                 elif k_num == 100: 
                     max_cod_list = hund_shot_idx
 
-                max_cod_idx = max_cod_list[seed-1]
+                max_cod_idx = max_cod_list[seed]
                 fine_tune_model = get_kshot_model(basic_model_pth, max_cod_idx) # Basic DNN에서 best node만 뽑아 구조를 변경한 모델
                 dnn_k_shot_r2, adft_kshot_r2 = kshot_fine_tuning(fine_tune_model, kshot_df, kshot_pheno, max_cod_idx, fine_tuned_model_pth, generator, device, seed, data_file_name)
 
