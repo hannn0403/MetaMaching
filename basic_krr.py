@@ -33,7 +33,7 @@ warnings.filterwarnings("ignore")
 
 
 ### BASIC KRR 관련한 함수 START ### 
-def basic_krr(df, pheno_with_age, k_num, data_file_name, iteration=10, only_test=False):
+def basic_krr(df, pheno_with_iq, k_num, data_file_name, iteration=10, only_test=False):
     test_size=0.2
     corrs = []
     cods = []
@@ -51,24 +51,30 @@ def basic_krr(df, pheno_with_age, k_num, data_file_name, iteration=10, only_test
         print(f'==========================================Iter{seed}==========================================')
         # Random Seed Setting
         set_random_seeds(seed)
+
+
         # Train / Val / Kshot/ Test
         train_df, train_pheno, val_df, val_pheno, _, _, _, _ = \
-                                    preprocess_data(df, pheno_with_age, test_size, k_num, seed)
-        _, _, _, _, kshot_df, kshot_pheno, test_df, test_pheno= preprocess_data(df, pheno_with_age, test_size, k_num, seed)
+                                    preprocess_data(df, pheno_with_iq, test_size, k_num, seed)
+        _, _, _, _, kshot_df, kshot_pheno, test_df, test_pheno= preprocess_data(df, pheno_with_iq, test_size, k_num, seed)
         train_df = np.concatenate((train_df, val_df), axis=0)
         train_pheno = np.concatenate((train_pheno, train_pheno), axis=0)
-        train_age = train_pheno[:, -1]
+        # train_iq = train_pheno[:, -1] # 사용되지 않아서 주석처리 함.
         train_pheno = train_pheno[:, :-1]
-        kshot_age = kshot_pheno[:, -1]#10,1
+        kshot_iq = kshot_pheno[:, -1]#10,1
         kshot_pheno = kshot_pheno[:, :-1]#10,58
-        test_age = test_pheno[:, -1]#140,58
+        test_iq = test_pheno[:, -1]#140,58
         test_pheno = test_pheno[:, :-1]#
+
+
         kf = KFold(n_splits=5) # K-fold 설정
-        r2_scores = []
-        krr_model = KernelRidge()
+        # r2_scores = []
+        # krr_model = KernelRidge()
         # alphas = [1]
         # param_grid = {'alpha':alphas}
         krr_models = []
+
+
         # K-fold 로 Iteration 돈다.
         for train_index, test_index in kf.split(train_df):
             train_df_fold, val_df_fold = train_df[train_index], train_df[test_index]
@@ -82,31 +88,36 @@ def basic_krr(df, pheno_with_age, k_num, data_file_name, iteration=10, only_test
                 best_krr = KernelRidge(alpha = 1)
                 best_krr.fit(train_df_fold, train_pheno_fold[:, i])
                 krr_models.append(best_krr) # 모델을 List에 넣는다...?
+        
         # 58개의 phenotype에 대해서 5 fold했고
         # 5개의 fold 중 max cod를 갖는 fold의 krr model만 추출
         max_cod_model = []
+        
         for i in range(58):
             subset = krr_models[i::58]
             r2_scores_kshot = []
+            
             for i in range(len(subset)):
                 pheno_pred = subset[i].predict(kshot_df)
-                # 여기에서는 Age가 아니라 각 phenotype이지만, 일단은 age라고 해야 한다.
-                pheno_df = pd.DataFrame({'prediction' : pheno_pred, 'Age' : kshot_pheno[:, i]})
-
+                pheno_df = pd.DataFrame({'prediction' : pheno_pred, 'IQ' : kshot_pheno[:, i]})
                 r2 = get_cod_score(pheno_df)
                 r2_scores_kshot.append(r2)
+
             max_cod_model.append(r2_scores_kshot.index(max(r2_scores_kshot)))
+
         max_cod_krr_models = []
+
         for i in range(len(max_cod_model)):
             max_cod_krr_models.append(krr_models[i + 58 * max_cod_model[i]])
+
         # best cod 추출된 krr model로 k shot age cod 계산 후 best krr node 추출
         kshot_cods = []
         
         for i in range(len(max_cod_krr_models)):
             k_pred = max_cod_krr_models[i].predict(kshot_df)
-            k_pred_df = pd.DataFrame({'prediction' : k_pred, 'Age':kshot_age})
-            k_age_cod = get_cod_score(k_pred_df)
-            kshot_cods.append(k_age_cod)
+            k_pred_df = pd.DataFrame({'prediction' : k_pred, 'IQ':kshot_iq})
+            k_iq_cod = get_cod_score(k_pred_df)
+            kshot_cods.append(k_iq_cod)
             
         print('max cod index:', kshot_cods.index(max(kshot_cods)))
         max_kshot_cod_idx = kshot_cods.index(max(kshot_cods))
@@ -115,13 +126,13 @@ def basic_krr(df, pheno_with_age, k_num, data_file_name, iteration=10, only_test
         # best krr model로 test
         test_pred = max_cod_krr_models[max_kshot_cod_idx].predict(test_df)
         joblib.dump(max_cod_krr_models[max_kshot_cod_idx], model_pth)
-        test_pred_df = pd.DataFrame({'prediction' : test_pred, 'Age' : test_age})
-        test_age_cod = get_cod_score(test_pred_df)
-        test_age_corr = get_corr_score(test_pred_df)
-        corrs.append(test_age_corr)
-        cods.append(test_age_cod)
-        print(f'cod: {test_age_cod:.4f}')
-        print(f'corr: {test_age_corr:.4f}')
+        test_pred_df = pd.DataFrame({'prediction' : test_pred, 'IQ' : test_iq})
+        test_iq_cod = get_cod_score(test_pred_df)
+        test_iq_corr = get_corr_score(test_pred_df)
+        corrs.append(test_iq_corr)
+        cods.append(test_iq_cod)
+        print(f'cod: {test_iq_cod:.4f}')
+        print(f'corr: {test_iq_corr:.4f}')
 
     print('==========================================학습을 완료하였습니다.==========================================')
     print('\n\n')
@@ -132,9 +143,4 @@ def basic_krr(df, pheno_with_age, k_num, data_file_name, iteration=10, only_test
     return cods, corrs, best_node
    
     
-# basic_krr(df, pheno_with_age, k_num=10, batch_size=128, iteration=10)
-
-
-
-
-### BASIC KRR END ### 
+# basic_krr(df, pheno_with_iq, k_num=10, batch_size=128, iteration=10)
