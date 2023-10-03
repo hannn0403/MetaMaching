@@ -130,7 +130,7 @@ def get_kshot_idx(model, kshot_df, kshot_pheno, k_num, generator, device, seed):
     kshot_age_cods = []
     
     for i in range(len(kshot_outputs)):
-        pred = pd.DataFrame({'prediction':kshot_outputs[i], 'Age': kshot_age})
+        pred = pd.DataFrame({'prediction':kshot_outputs[i], 'IQ': kshot_age})
         kshot_age_cods.append(get_cod_score(pred)) # 각 phenotype을 예측하여 이것을 Age와 COD를 계산
         # kshot_age_cods.append(get_corr_score(pred))
         

@@ -44,7 +44,6 @@ def get_upper_tri(directory_path, length):
     return idx, result
 
 
-
 def get_common_elements(list1, list2): 
     counter1 = Counter(list1) 
     counter2 = Counter(list2) 
@@ -75,17 +74,17 @@ def set_random_seeds(seed):
     torch.backends.cudnn.benchmark = False
     
     
-def preprocess_data(df, pheno_with_age, test_size, k_num, seed): 
+def preprocess_data(df, pheno_with_iq, test_size, k_num, seed): 
     '''
     Shuffling을 진행한 뒤에 Meta-Train set과 Meta-Test set으로 분리한다. 
     이후에 Meta-Train set을 각각 Train / Validation으로 나눠 Z-score normalization을 진행하고 
     Meta-Test set을 각각 Kshot / Test으로 나눠 Z-Score normalization을 진행한다. 
     '''
     # Shuffling (이후에는 shuffling 하지 않음) 
-    merged_df = pd.merge(df, pheno_with_age, on='Subject')
+    merged_df = pd.merge(df, pheno_with_iq, on='Subject')
     shuffled_df = merged_df.sample(frac=1, random_state=seed) 
     
-    pheno = shuffled_df[pheno_with_age.columns].to_numpy()
+    pheno = shuffled_df[pheno_with_iq.columns].to_numpy()
     df = shuffled_df[df.columns].to_numpy()
     
     
@@ -114,6 +113,7 @@ def preprocess_data(df, pheno_with_age, test_size, k_num, seed):
     
     return train_df, train_pheno, val_df, val_pheno, kshot_df, kshot_pheno, test_df, test_pheno
 
+
 def get_dataloader(df, pheno, batch_size, generator, device): 
     df, pheno = (
         torch.Tensor(df).to(device), 
@@ -124,8 +124,9 @@ def get_dataloader(df, pheno, batch_size, generator, device):
 
     return dataloader
 
+
 def get_cod_score(predict_and_gt):
-    X = predict_and_gt['Age']
+    X = predict_and_gt['IQ']
     y = predict_and_gt['prediction']
     # 절편(intercept)을 추가합니다.
     X = sm.add_constant(X)
@@ -135,8 +136,9 @@ def get_cod_score(predict_and_gt):
     r_squared = model.rsquared
     return r_squared
 
+
 def get_corr_score(predict_and_gt):
-    correlation = predict_and_gt['prediction'].corr(predict_and_gt['Age'], method='pearson')
+    correlation = predict_and_gt['prediction'].corr(predict_and_gt['IQ'], method='pearson')
     return correlation
 
 
@@ -157,6 +159,7 @@ def save_iteration_loss_plot(train_loss_list, val_loss_list, loss_img_pth, seed)
     
     plt.savefig(loss_img_pth, dpi=300)
     
+
 def mean_and_std(lst):
     absolute_values = [abs(x) for x in lst]
     mean = sum(absolute_values) / len(absolute_values)
@@ -164,90 +167,6 @@ def mean_and_std(lst):
     std_dev = math.sqrt(variance)
     return mean, std_dev
 
-
-'''def correlation_viz(dnn_corrs, adft_dnn_corrs, adst_dnn_corrs, data_file_name, revised = False):
-    fig = plt.figure(figsize =(10, 8))
-    # dnn_corrs = [dnn_corrs_10, dnn_corrs_30, dnn_corrs_50, dnn_corrs_100]
-    # adft_dnn_corrs = [adft_corrs_10, adft_corrs_30, adft_corrs_50, adft_corrs_100]
-    # adst_dnn_corrs = [adst_age_corr_10, adst_age_corr_30, adst_age_corr_50, adst_age_corr_100]
-    plt.boxplot(dnn_corrs, positions=[1, 5,9,13], patch_artist = True,boxprops = dict(facecolor = "lightsteelblue"))
-    plt.boxplot(adft_dnn_corrs, positions=[2,6,10,14],patch_artist = True,boxprops = dict(facecolor = "cornflowerblue"))
-    plt.boxplot(adst_dnn_corrs, positions=[3,7,11,15], patch_artist = True, boxprops = dict(facecolor = "royalblue"))
-
-    # x축 라벨 설정
-    plt.xticks([2,6,10,14], [10, 30, 50, 100], fontsize = 12)
-
-    label_1 = mpatches.Patch(color='lightsteelblue', label='Basic DNN')
-    label_2 = mpatches.Patch(color='cornflowerblue', label='Advanced Fine-tuning')
-    label_3 = mpatches.Patch(color='royalblue', label='Advanced Stacking')
-
-    plt.legend(handles=[label_1, label_2, label_3], fontsize = 12, frameon = False)
-    
-    title = f"{data_file_name.split('_')[0].upper()} : {data_file_name.split('_')[1].upper()}"
-    plt.title(title, fontsize = 20)
-    plt.xlabel('Number of participants(K-shot)',fontsize=14)
-    plt.ylabel('Prediction performance(correlation)', fontsize=14)
-    plt.yticks(fontsize=12)
-    if revised:
-        plt.savefig(f'D:/meta_matching_data/results/plot/corr/{data_file_name}_revised.png')
-    else:
-        plt.savefig(f'D:/meta_matching_data/results/plot/corr/{data_file_name}.png')
-    
-def cod_viz(dnn_cods, adft_dnn_cods, adst_dnn_cods, data_file_name, revised = False):
-    fig = plt.figure(figsize =(10, 8))
-
-    plt.boxplot(dnn_cods, positions=[1, 5,9,13], patch_artist = True,boxprops = dict(facecolor = "lightsteelblue"))
-    plt.boxplot(adft_dnn_cods, positions=[2,6,10,14],patch_artist = True,boxprops = dict(facecolor = "cornflowerblue"))
-    plt.boxplot(adst_dnn_cods, positions=[3,7,11,15], patch_artist = True, boxprops = dict(facecolor = "royalblue"))
-
-    # x축 라벨 설정
-    plt.xticks([2,6,10,14], [10, 30, 50, 100], fontsize = 12)
-
-
-    label_1 = mpatches.Patch(color='lightsteelblue', label='Basic DNN')
-    label_2 = mpatches.Patch(color='cornflowerblue', label='Advanced Fine-tuning')
-    label_3 = mpatches.Patch(color='royalblue', label='Advanced Stacking')
-
-    plt.legend(handles=[label_1, label_2, label_3], fontsize = 12, frameon = False)
-    
-    title = f"{data_file_name.split('_')[0].upper()} : {data_file_name.split('_')[1].upper()}"
-    plt.title(title, fontsize = 20)
-    plt.xlabel('Number of participants(K-shot)',fontsize=14)
-    plt.ylabel('Prediction performance(COD)', fontsize=14)
-    plt.yticks(fontsize=12)
-    if revised:
-        plt.savefig(f'D:/meta_matching_data/results/plot/cod/{data_file_name}_revised.png')
-    else :
-        plt.savefig(f'D:/meta_matching_data/results/plot/cod/{data_file_name}.png')'''
-
-'''def correlation_viz(dnn_corrs, gcn_corrs, dgcnn_corrs, adft_dnn_corrs, adst_dnn_corrs, data_file_name, revised = False):
-    fig = plt.figure(figsize =(15, 8))
-    plt.boxplot(dnn_corrs, positions=[1,6,11,16], patch_artist = True,boxprops = dict(facecolor = "lightsteelblue"))
-    plt.boxplot(gcn_corrs, positions=[2,7,12,17],patch_artist = True,boxprops = dict(facecolor = "cornflowerblue"))
-    plt.boxplot(dgcnn_corrs, positions=[3,8,13,18], patch_artist = True, boxprops = dict(facecolor = "royalblue"))
-    plt.boxplot(adft_dnn_corrs, positions=[4,9,14,19],patch_artist = True,boxprops = dict(facecolor = "limegreen"))
-    plt.boxplot(adst_dnn_corrs, positions=[5,10,15,20], patch_artist = True, boxprops = dict(facecolor = "goldenrod"))
-
-    # x축 라벨 설정
-    plt.xticks([3,8,13,18], [10, 30, 50, 100], fontsize = 12)
-
-    label_1 = mpatches.Patch(color='lightsteelblue', label='Basic DNN')
-    label_2 = mpatches.Patch(color='cornflowerblue', label='Basic GCN')
-    label_3 = mpatches.Patch(color='royalblue', label='Basic DGCNN')
-    label_4 = mpatches.Patch(color='limegreen', label='Advanced Fine-tuning')
-    label_5 = mpatches.Patch(color='goldenrod', label='Advanced Stacking')
-
-    plt.legend(handles=[label_1, label_2, label_3, label_4, label_5], fontsize = 12, frameon = False)
-    
-    title = f"{data_file_name.split('_')[0].upper()} : {data_file_name.split('_')[1].upper()}"
-    plt.title(title, fontsize = 20)
-    plt.xlabel('Number of participants(K-shot)',fontsize=14)
-    plt.ylabel('Prediction performance(correlation)', fontsize=14)
-    plt.yticks(fontsize=12)
-    if revised:
-        plt.savefig(f'D:/meta_matching_data/results/plot/corr/{data_file_name}_revised_with_GNN.png')
-    else:
-        plt.savefig(f'D:/meta_matching_data/results/plot/corr/{data_file_name}_with_GNN.png')'''
 
 def correlation_viz(data_file_name, revised = False):
     dnn_df = pd.read_csv(f"D:/meta_matching_data/results/csv/{data_file_name}_dnn.csv", index_col=0)
@@ -298,8 +217,6 @@ def correlation_viz(data_file_name, revised = False):
         plt.savefig(f'D:/meta_matching_data/results/plot/corr/{data_file_name}_with_GNN.png')
 
 
-    
-    
 def cod_viz(data_file_name, revised = False):
     dnn_df = pd.read_csv(f"D:/meta_matching_data/results/csv/{data_file_name}_dnn.csv", index_col=0)
     gcn_df = pd.read_csv(f"D:/meta_matching_data/results/csv/{data_file_name}_gcn.csv", index_col=0)
@@ -347,83 +264,6 @@ def cod_viz(data_file_name, revised = False):
     else :
         plt.savefig(f'D:/meta_matching_data/results/plot/cod/{data_file_name}_with_GNN.png')
 
-    
-'''def save_results(dnn_cods, dnn_corrs, adft_dnn_cods, adft_dnn_corrs, adst_dnn_cods, adst_dnn_corrs, data_file_name): 
-    #dnn
-    df1 = pd.DataFrame(dnn_cods).T
-    df2 = pd.DataFrame(dnn_corrs).T
-
-    columns = ['cods_k10', 'cods_k30', 'cods_k50', 'cods_k100','corrs_k10', 'corrs_k30', 'corrs_k50', 'corrs_k100']
-    dnn_df = pd.concat([df1, df2], axis=1)
-    dnn_df.columns = columns
-    dnn_df.to_csv(f'D:/meta_matching_data/results/csv/{data_file_name}_dnn.csv')
-
-
-    #advanced finetuning
-    df1 = pd.DataFrame(adft_dnn_cods).T
-    df2 = pd.DataFrame(adft_dnn_corrs).T
-
-    adft_df = pd.concat([df1, df2], axis=1)
-    adft_df.columns = columns
-    adft_df.to_csv(f'D:/meta_matching_data/results/csv/{data_file_name}_adft.csv')
-
-
-    #advanced stacking
-    df1 = pd.DataFrame(adst_dnn_cods).T
-    df2 = pd.DataFrame(adst_dnn_corrs).T
-
-    adst_df = pd.concat([df1, df2], axis=1)
-    adst_df.columns = columns
-    adst_df.to_csv(f'D:/meta_matching_data/results/csv/{data_file_name}_adst.csv')
-    print("Save Results Complete!")
-'''
-'''
-def save_results(dnn_cods, dnn_corrs, gcn_cods, gcn_corrs, dgcnn_cods, dgcnn_corrs, adft_dnn_cods, adft_dnn_corrs, adst_dnn_cods, adst_dnn_corrs, data_file_name): 
-    #dnn
-    df1 = pd.DataFrame(dnn_cods).T
-    df2 = pd.DataFrame(dnn_corrs).T
-
-    columns = ['cods_k10', 'cods_k30', 'cods_k50', 'cods_k100','corrs_k10', 'corrs_k30', 'corrs_k50', 'corrs_k100']
-    dnn_df = pd.concat([df1, df2], axis=1)
-    dnn_df.columns = columns
-    dnn_df.to_csv(f'D:/meta_matching_data/results/csv/{data_file_name}_dnn.csv')
-
-    #gcn
-    df1 = pd.DataFrame(gcn_cods).T
-    df2 = pd.DataFrame(gcn_corrs).T
-
-    columns = ['cods_k10', 'cods_k30', 'cods_k50', 'cods_k100','corrs_k10', 'corrs_k30', 'corrs_k50', 'corrs_k100']
-    gcn_df = pd.concat([df1, df2], axis=1)
-    gcn_df.columns = columns
-    gcn_df.to_csv(f'D:/meta_matching_data/results/csv/{data_file_name}_gcn.csv')
-
-    #dgcnn
-    df1 = pd.DataFrame(dgcnn_cods).T
-    df2 = pd.DataFrame(dgcnn_corrs).T
-
-    columns = ['cods_k10', 'cods_k30', 'cods_k50', 'cods_k100','corrs_k10', 'corrs_k30', 'corrs_k50', 'corrs_k100']
-    dgcnn_df = pd.concat([df1, df2], axis=1)
-    dgcnn_df.columns = columns
-    dgcnn_df.to_csv(f'D:/meta_matching_data/results/csv/{data_file_name}_dgcnn.csv')
-
-    #advanced finetuning
-    df1 = pd.DataFrame(adft_dnn_cods).T
-    df2 = pd.DataFrame(adft_dnn_corrs).T
-
-    adft_df = pd.concat([df1, df2], axis=1)
-    adft_df.columns = columns
-    adft_df.to_csv(f'D:/meta_matching_data/results/csv/{data_file_name}_adft.csv')
-
-
-    #advanced stacking
-    df1 = pd.DataFrame(adst_dnn_cods).T
-    df2 = pd.DataFrame(adst_dnn_corrs).T
-
-    adst_df = pd.concat([df1, df2], axis=1)
-    adst_df.columns = columns
-    adst_df.to_csv(f'D:/meta_matching_data/results/csv/{data_file_name}_adst.csv')
-    print("Save Results Complete!")
-'''
 
 def save_results(cods, corrs, data_file_name, model_name): 
     #dnn
@@ -435,19 +275,6 @@ def save_results(cods, corrs, data_file_name, model_name):
     df.columns = columns
     df.to_csv(f'D:/meta_matching_data/results/csv/{data_file_name}_{model_name}.csv')
     print("Save Results Complete!")
-
-
-'''def save_best_nodes(adft_best_nodes, adst_best_nodes, data_file_name):
-    # dnn best node나 adft best node 같아서 dnn best node에 관한 변수 추가 하지 않음
-    df1 = pd.DataFrame(adft_best_nodes).T
-    df2 = pd.DataFrame(adst_best_nodes).T
-
-    columns = ['adft_k10','adft_k30','adft_k50','adft_k100', 'adst_k10','adst_k30','adst_k50','adst_k100']
-    best_nodes = pd.concat([df1, df2], axis=1)
-    best_nodes.columns = columns
-    best_nodes.to_csv(f'D:/meta_matching_data/results/csv/{data_file_name}_bestnodes.csv')
-    print("Save Best Nodes Complete!")
-'''
 
 
 def save_best_nodes(gcn_best_nodes, dgcnn_best_nodes, adft_best_nodes, adst_best_nodes, data_file_name):
@@ -462,6 +289,7 @@ def save_best_nodes(gcn_best_nodes, dgcnn_best_nodes, adft_best_nodes, adst_best
     best_nodes.columns = columns
     best_nodes.to_csv(f'D:/meta_matching_data/results/csv/{data_file_name}_bestnodes.csv')
     print("Save Best Nodes Complete!")
+
 
 def save_best_nodes_with_krr(krr_best_nodes, data_file_name):
     krr_node_df = pd.DataFrame(np.array(krr_best_nodes).T, columns=['krr_k10', 'krr_k30', 'krr_k50', 'krr_k100'])
@@ -494,8 +322,6 @@ def save_k_val_cods(dnn_kshot_r2s, adft_kshot_r2s, data_file_name):
     print("Save Validation Cods Complete!")
 
 
-    
-
 def save_revised_results(data_file_name):
     cod_df = pd.read_csv(f"D:/meta_matching_data/results/csv/{data_file_name}_validation_cod.csv", index_col = 0)
     dnn_df = pd.read_csv(f"D:/meta_matching_data/results/csv/{data_file_name}_dnn.csv", index_col = 0)
@@ -523,7 +349,6 @@ def save_revised_results(data_file_name):
     return revised_adft_cods, revised_adft_corrs
 
 
-
 def compute_KNN_graph(matrix, k_degree=10, metric='euclidean'): 
     """
     Calculate the adjacency matrix from the connectivity matrix.
@@ -540,7 +365,6 @@ def compute_KNN_graph(matrix, k_degree=10, metric='euclidean'):
     A = adjacency(dist, idx).astype(np.float32) 
 
     return A 
-
 
 
 def adjacency(dist, idx): 

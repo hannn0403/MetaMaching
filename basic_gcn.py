@@ -22,8 +22,8 @@ class ConnectivityData(Dataset):
     def __init__(self, connectivity, labels): 
         # labels는 최종적으로 맞히고자 하는 Feature는 이미 제외된 상태로 Dataset에 입력되었다고 가정 
         # connectivity = np.load("./data/functional_restingstate.npy")
-        # labels = np.genfromtxt("./data/pheno_with_age.csv", delimiter=',', skip_header=1) 
-        # labels = labels[:, 1:-1] # -> Age를 제외 
+        # labels = np.genfromtxt("./data/pheno_with_iq.csv", delimiter=',', skip_header=1) 
+        # labels = labels[:, 1:-1] # -> IQ를 제외 
         # labels = np.delete(labels, 4, axis=1)
 
         self.data_list = []
@@ -89,8 +89,6 @@ class GCN(torch.nn.Module):
         return x 
     
 
-
-
 class DGCNN(torch.nn.Module): 
     def __init__(self, 
                  num_features, 
@@ -134,7 +132,11 @@ class DGCNN(torch.nn.Module):
         classes = self.classifier_2(out)
 
         return classes
-    
+
+
+
+
+
 def GCN_train(model, dataset, loader, optimizer, device): 
     model.train()
 
@@ -165,7 +167,7 @@ def GCN_val(model, dataset, loader, device) :
     return val_loss_all / len(dataset) 
 
 
-def GCN_test(model, test_loader, test_age, max_cod_idx, device): 
+def GCN_test(model, test_loader, test_iq, max_cod_idx, device): 
     model.eval() 
     test_loss_all = 0 
 
@@ -180,7 +182,7 @@ def GCN_test(model, test_loader, test_age, max_cod_idx, device):
 
     test_outputs = torch.cat(test_outputs).cpu().detach().numpy()
     test_outputs = test_outputs[:, max_cod_idx].reshape(-1, 1) 
-    pred_df = pd.DataFrame({'prediction': test_outputs.flatten(), 'Age':test_age.flatten()})
+    pred_df = pd.DataFrame({'prediction': test_outputs.flatten(), 'IQ':test_iq.flatten()})
 
     cod = get_cod_score(pred_df) 
     corr = get_corr_score(pred_df) 
@@ -190,7 +192,7 @@ def GCN_test(model, test_loader, test_age, max_cod_idx, device):
     return corr, cod 
 
 
-def get_gcn_kshot_idx(model, kshot_loader, kshot_age): 
+def get_gcn_kshot_idx(model, kshot_loader, kshot_iq): 
     model.eval() 
     kshot_outputs = []
 
@@ -201,20 +203,18 @@ def get_gcn_kshot_idx(model, kshot_loader, kshot_age):
             kshot_outputs.append(output) 
 
     kshot_outputs = torch.cat(kshot_outputs).cpu().detach().numpy().T
-    kshot_age_cods = []
+    kshot_iq_cods = []
 
     for i in range(len(kshot_outputs)): 
-        pred = pd.DataFrame({'prediction':kshot_outputs[i], 'Age':kshot_age})
-        kshot_age_cods.append(get_cod_score(pred))
+        pred = pd.DataFrame({'prediction':kshot_outputs[i], 'IQ':kshot_iq})
+        kshot_iq_cods.append(get_cod_score(pred))
 
 
-    max_cod_idx = kshot_age_cods.index(max(kshot_age_cods))
+    max_cod_idx = kshot_iq_cods.index(max(kshot_iq_cods))
     return max_cod_idx
 
 
-
-
-def basic_gcn(df, pheno_with_age, k_num_list, data_file_name, iteration, only_test=False): 
+def basic_gcn(df, pheno_with_iq, k_num_list, data_file_name, iteration, only_test=False): 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     test_size=0.2 
     k_num=10 # 임의로 이 값을 지정해준 것 (실질적으로 사용 안됨)
@@ -237,7 +237,7 @@ def basic_gcn(df, pheno_with_age, k_num_list, data_file_name, iteration, only_te
             scheduler = CosineAnnealingLR(optimizer, T_max=20)
 
             train_df, train_pheno, val_df, val_pheno, _, _, _, _ = \
-                                        preprocess_data(df, pheno_with_age, test_size, k_num, seed)
+                                        preprocess_data(df, pheno_with_iq, test_size, k_num, seed)
             train_pheno = train_pheno[:, :-1]
             val_pheno = val_pheno[:, :-1]
 
@@ -309,11 +309,11 @@ def basic_gcn(df, pheno_with_age, k_num_list, data_file_name, iteration, only_te
 
         for k_num in k_num_list: 
             print(f"==========================================K : {k_num}==========================================")
-            _, _, _, _, kshot_df, kshot_pheno, test_df, test_pheno= preprocess_data(df, pheno_with_age, test_size, k_num, seed)
+            _, _, _, _, kshot_df, kshot_pheno, test_df, test_pheno= preprocess_data(df, pheno_with_iq, test_size, k_num, seed)
 
-            test_age = test_pheno[:, -1]
+            test_iq = test_pheno[:, -1]
             test_pheno = test_pheno[:, :-1]
-            kshot_age = kshot_pheno[:, -1]
+            kshot_iq = kshot_pheno[:, -1]
             kshot_pheno = kshot_pheno[:, :-1]
 
             test_dataset = ConnectivityData(test_df, test_pheno)
@@ -323,8 +323,8 @@ def basic_gcn(df, pheno_with_age, k_num_list, data_file_name, iteration, only_te
             kshot_loader = DataLoader(kshot_dataset, batch_size=k_num)
 
             # max_cod_idx를 K Samples로 계산 
-            max_cod_idx = get_gcn_kshot_idx(model, kshot_loader, kshot_age)
-            test_corr, test_cod = GCN_test(model, test_loader, test_age, max_cod_idx, device)
+            max_cod_idx = get_gcn_kshot_idx(model, kshot_loader, kshot_iq)
+            test_corr, test_cod = GCN_test(model, test_loader, test_iq, max_cod_idx, device)
 
 
             if k_num == 10 : 
@@ -374,10 +374,8 @@ def basic_gcn(df, pheno_with_age, k_num_list, data_file_name, iteration, only_te
         
     return corrs_10, cods_10, corrs_30, cods_30, corrs_50, cods_50, corrs_100, cods_100, best_node_10, best_node_30, best_node_50, best_node_100
     
-
-
     
-def basic_dgcnn(df, pheno_with_age, k_num_list, data_file_name, iteration, only_test=False): 
+def basic_dgcnn(df, pheno_with_iq, k_num_list, data_file_name, iteration, only_test=False): 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     test_size=0.2 
     k_num=10 # 임의로 이 값을 지정해준 것 (실질적으로 사용 안됨)
@@ -400,7 +398,7 @@ def basic_dgcnn(df, pheno_with_age, k_num_list, data_file_name, iteration, only_
             scheduler = CosineAnnealingLR(optimizer, T_max=20)
 
             train_df, train_pheno, val_df, val_pheno, _, _, _, _ = \
-                                        preprocess_data(df, pheno_with_age, test_size, k_num, seed)
+                                        preprocess_data(df, pheno_with_iq, test_size, k_num, seed)
             train_pheno = train_pheno[:, :-1]
             val_pheno = val_pheno[:, :-1]
 
@@ -472,11 +470,11 @@ def basic_dgcnn(df, pheno_with_age, k_num_list, data_file_name, iteration, only_
 
         for k_num in k_num_list: 
             print(f"==========================================K : {k_num}==========================================")
-            _, _, _, _, kshot_df, kshot_pheno, test_df, test_pheno= preprocess_data(df, pheno_with_age, test_size, k_num, seed)
+            _, _, _, _, kshot_df, kshot_pheno, test_df, test_pheno= preprocess_data(df, pheno_with_iq, test_size, k_num, seed)
 
-            test_age = test_pheno[:, -1]
+            test_iq = test_pheno[:, -1]
             test_pheno = test_pheno[:, :-1]
-            kshot_age = kshot_pheno[:, -1]
+            kshot_iq = kshot_pheno[:, -1]
             kshot_pheno = kshot_pheno[:, :-1]
 
             test_dataset = ConnectivityData(test_df, test_pheno)
@@ -486,8 +484,8 @@ def basic_dgcnn(df, pheno_with_age, k_num_list, data_file_name, iteration, only_
             kshot_loader = DataLoader(kshot_dataset, batch_size=k_num)
 
             # max_cod_idx를 K Samples로 계산 
-            max_cod_idx = get_gcn_kshot_idx(model, kshot_loader, kshot_age)
-            test_corr, test_cod = GCN_test(model, test_loader, test_age, max_cod_idx, device)
+            max_cod_idx = get_gcn_kshot_idx(model, kshot_loader, kshot_iq)
+            test_corr, test_cod = GCN_test(model, test_loader, test_iq, max_cod_idx, device)
 
 
             if k_num == 10 : 
