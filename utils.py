@@ -3,6 +3,7 @@
 import os
 import scipy
 import scipy.io
+import seaborn as sns
 import torch
 import math
 import random
@@ -263,6 +264,79 @@ def cod_viz(data_file_name, revised = False):
         plt.savefig(f'D:/meta_matching_data/results/plot/cod/{data_file_name}_revised_with_GNN.png')
     else :
         plt.savefig(f'D:/meta_matching_data/results/plot/cod/{data_file_name}_with_GNN.png')
+
+
+def viz_node_corr(data_file_name): 
+    node_corr_df = pd.read_csv(f'D:/meta_matching_data/node_corr/{data_file_name}_node_corr.csv', index_col=0)
+    plot_dir = f"D:/meta_matching_data/node_corr/plot/{data_file_name}/"
+    if not os.path.exists(plot_dir):
+        os.makedirs(plot_dir)
+        print(f"{plot_dir}을 생성하였습니다")
+    
+    col_list = node_corr_df.columns.tolist() 
+
+    col_10 = []
+    col_30 = []
+    col_50 = []
+    col_100 = []
+
+    for column in col_list: 
+        if column.split('_')[-1] == '10': 
+            col_10.append(column)
+        elif column.split('_')[-1] == '30': 
+            col_30.append(column)
+        elif column.split('_')[-1] == '50': 
+            col_50.append(column)
+        elif column.split('_')[-1] == '100': 
+            col_100.append(column)
+            
+            
+    # '10', '30', '50', '100'에 따라서 DataFrame을 나눕니다.
+    df_10 = node_corr_df.loc[:, col_10]
+    df_30 = node_corr_df.loc[:, col_30]
+    df_50 = node_corr_df.loc[:, col_50]
+    df_100 = node_corr_df.loc[:, col_100]
+
+
+    df_10 = df_10.T.mean().values.reshape(1, -1) 
+    # Heatmap을 생성합니다.
+    plt.figure(figsize=(40, 1))  # 그림의 크기를 조절합니다.
+    sns.heatmap(df_10, annot=True, fmt='.2f', cmap='Reds')
+    plt.title(f"{data_file_name} K : 10 Node Correlation", y=4.03, fontsize=26, fontweight='bold')
+
+    # 그래프를 표시합니다.
+    plt.savefig(f"D:meta_matching_data/node_corr/plot/{data_file_name}/{data_file_name}_k10.png", dpi=300, bbox_inches='tight', pad_inches=0)
+    
+    df_30 = df_30.T.mean().values.reshape(1, -1) 
+    # Heatmap을 생성합니다.
+    plt.figure(figsize=(40, 1))  # 그림의 크기를 조절합니다.
+    sns.heatmap(df_30, annot=True, fmt='.2f', cmap='Reds')
+    plt.title(f"{data_file_name} K : 30 Node Correlation", y=4.03, fontsize=26, fontweight='bold')
+
+    # 그래프를 표시합니다.
+    plt.savefig(f"D:meta_matching_data/node_corr/plot/{data_file_name}/{data_file_name}_k30.png", dpi=300, bbox_inches='tight', pad_inches=0)
+    
+    
+    df_50 = df_50.T.mean().values.reshape(1, -1) 
+    # Heatmap을 생성합니다.
+    plt.figure(figsize=(40, 1))  # 그림의 크기를 조절합니다.
+    sns.heatmap(df_50, annot=True, fmt='.2f', cmap='Reds')
+    plt.title(f"{data_file_name} K : 50 Node Correlation", y=4.03, fontsize=26, fontweight='bold')
+
+    # 그래프를 표시합니다.
+    plt.savefig(f"D:meta_matching_data/node_corr/plot/{data_file_name}/{data_file_name}_k50.png", dpi=300, bbox_inches='tight', pad_inches=0)
+    
+    
+    df_100 = df_100.T.mean().values.reshape(1, -1) 
+    # Heatmap을 생성합니다.
+    plt.figure(figsize=(40, 1))  # 그림의 크기를 조절합니다.
+    sns.heatmap(df_100, annot=True, fmt='.2f', cmap='Reds')
+    plt.title(f"{data_file_name} K : 100 Node Correlation", y=4.03, fontsize=26, fontweight='bold')
+
+    # 그래프를 표시합니다.
+    plt.savefig(f"D:meta_matching_data/node_corr/plot/{data_file_name}/{data_file_name}_k100.png", dpi=300, bbox_inches='tight', pad_inches=0)
+    
+    
 
 
 def save_results(cods, corrs, data_file_name, model_name): 
