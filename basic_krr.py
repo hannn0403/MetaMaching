@@ -40,10 +40,7 @@ def basic_krr(df, pheno_with_iq, k_num, data_file_name, iteration=10, only_test=
     best_node = []
 
     folder_path = f"D:/meta_matching_data/model_pth/{data_file_name}"
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
-        print(f"{folder_path}가 생성되었습니다!")
-
+    make_dirs(folder_path)
 
     # Training
     for seed in range(1, iteration+1):
