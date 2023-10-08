@@ -59,7 +59,6 @@ def basic_krr(df, pheno_with_iq, k_num, data_file_name, iteration=10, only_test=
         _, _, _, _, kshot_df, kshot_pheno, test_df, test_pheno= preprocess_data(df, pheno_with_iq, test_size, k_num, seed)
         train_df = np.concatenate((train_df, val_df), axis=0)
         train_pheno = np.concatenate((train_pheno, train_pheno), axis=0)
-        # train_iq = train_pheno[:, -1] # 사용되지 않아서 주석처리 함.
         train_pheno = train_pheno[:, :-1]
         kshot_iq = kshot_pheno[:, -1]#10,1
         kshot_pheno = kshot_pheno[:, :-1]#10,58
@@ -68,10 +67,6 @@ def basic_krr(df, pheno_with_iq, k_num, data_file_name, iteration=10, only_test=
 
 
         kf = KFold(n_splits=5) # K-fold 설정
-        # r2_scores = []
-        # krr_model = KernelRidge()
-        # alphas = [1]
-        # param_grid = {'alpha':alphas}
         krr_models = []
 
 
@@ -80,11 +75,6 @@ def basic_krr(df, pheno_with_iq, k_num, data_file_name, iteration=10, only_test=
             train_df_fold, val_df_fold = train_df[train_index], train_df[test_index]
             train_pheno_fold, val_pheno_fold = train_pheno[train_index], train_pheno[test_index]
             for i in range(train_pheno_fold.shape[1]):
-                # krr_model = KernelRidge()
-                # grid_search = GridSearchCV(krr_model, param_grid, cv = kf)
-                # grid_search.fit(train_df_fold, train_pheno_fold[:, i])
-                # best_alpha = grid_search.best_params_['alpha']
-                # best_krr = KernelRidge(alpha = best_alpha)
                 best_krr = KernelRidge(alpha = 1)
                 best_krr.fit(train_df_fold, train_pheno_fold[:, i])
                 krr_models.append(best_krr) # 모델을 List에 넣는다...?

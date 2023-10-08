@@ -45,7 +45,6 @@ def get_kshot_model(model_pth, max_cod_idx):
         after_model.fc4[1].weight = nn.Parameter(before_model.fc4[1].weight[max_cod_idx:max_cod_idx+1, :])
         after_model.fc4[1].bias = nn.Parameter(before_model.fc4[1].bias[max_cod_idx:max_cod_idx+1])
         
-        
     for param in after_model.fc3.parameters():
         param.requires_grad = True 
     for param in after_model.fc4.parameters():
@@ -68,11 +67,8 @@ def kshot_fine_tuning(model, kshot_df, kshot_pheno, max_cod_idx, fine_tuned_mode
     kshot_train_df, kshot_val_df, kshot_train_pheno, kshot_val_pheno = \
                             train_test_split(kshot_df, kshot_pheno, test_size=0.2, shuffle=False, random_state=seed)
     
-    # kshot_train_iq = kshot_train_pheno[:, -1] # 이거 안쓰임
-    # kshot_train_pheno = kshot_train_pheno[:, :-1]
     kshot_train_pheno = kshot_train_pheno[:, max_cod_idx] # 모델의 구조가 바뀌었으므로 max_cod_idx에 해당하는 phenotype만 남긴다. 
     kshot_val_iq = kshot_val_pheno[:, -1]
-    # kshot_val_pheno = kshot_val_pheno[:, :-1]
     kshot_val_pheno = kshot_val_pheno[:, max_cod_idx] # 모델의 구조가 바뀌었으므로 max_cod_idx에 해당하는 phenotype만 남긴다. 
     
     # Load to GPU & DataLoader 
@@ -96,10 +92,10 @@ def kshot_fine_tuning(model, kshot_df, kshot_pheno, max_cod_idx, fine_tuned_mode
     # Fine Tuning 진행 
     best_val_loss = float('inf')
     best_model = None
-    fine_tune_count = 0
     epoch = 1 
     train_loss_list = []
     val_loss_list = []
+
     while epoch <= 200: 
         total_train_loss = 0
         model.train()
@@ -133,10 +129,8 @@ def kshot_fine_tuning(model, kshot_df, kshot_pheno, max_cod_idx, fine_tuned_mode
         val_loss = torch.tensor(val_loss)
         val_loss_list.append(val_loss.to('cpu'))
         val_preds = torch.cat(val_preds).cpu().detach().numpy() 
-
         val_preds = val_preds.T
-        val_gt = kshot_val_pheno.T
-        val_pheno_cods = []
+
 
         if epoch % 50 == 0: 
             print(f"Epoch : {epoch} | Fine Tune Train Loss : {total_train_loss:.4f} | Validation Loss : {val_loss:.4f}")
@@ -153,16 +147,13 @@ def kshot_fine_tuning(model, kshot_df, kshot_pheno, max_cod_idx, fine_tuned_mode
 
     loss_img_pth = f'D:/meta_matching_data/model_pth/plot/fine_tune_{data_file_name}/{seed}_K_{kshot_train_df.shape[0]}_fine_tuned_dnn4l_adamw_{data_file_name}.png'
     folder_pth = f"d:/meta_matching_data/model_pth/plot/fine_tune_{data_file_name}"
-    if not os.path.exists(folder_pth):
-        os.makedirs(folder_pth)
-        print(f"{folder_pth}가 생성되었습니다!")
-
-
+    make_dirs(folder_pth)
     save_iteration_loss_plot(train_loss_list, val_loss_list, loss_img_pth, seed)
     model.load_state_dict(best_model) 
     print(f"fine_tuned_model_pth : {fine_tuned_model_pth}")
     torch.save(model, fine_tuned_model_pth) 
     print(f"Saved Best Model!!!")
+
     return dnn_k_val_iq_cod, k_val_iq_cod
     
   
@@ -183,9 +174,7 @@ def test_finetuned_model(fine_tuned_model_pth, test_df, test_pheno, max_cod_idx,
     with torch.no_grad():
         for inputs, targets in test_dataloader: 
             outputs = ft_model(inputs)
-            # loss = loss_function(outputs, targets)
             test_outputs.append(outputs)
-            
     
     test_outputs = torch.cat(test_outputs).cpu().detach().numpy()
     test_outputs = test_outputs[:, 0].reshape(-1, 1) 
@@ -194,7 +183,6 @@ def test_finetuned_model(fine_tuned_model_pth, test_df, test_pheno, max_cod_idx,
 
     iq_corr = get_corr_score(pred)
     iq_cod = get_cod_score(pred)
-    
     
     return iq_corr, iq_cod
    
@@ -205,24 +193,14 @@ def advanced_finetuning(df, pheno_with_iq, k_num_list, data_file_name, batch_siz
     이후에, K sample을 4:1의 비율로 나눠 Training을 진행하고, Validation set으로 stopping criterion을 정한다. 
     '''
     device='cuda'
-    patients = 30
     test_size=0.2
     
-    # 1 ~ (iteration+1)번 모델까지 어떤 node가 가장 높은 성능을 보이는 지 저장할 리스트 
-    ten_shot_idx = [-100]
-    thirty_shot_idx = [-100]
-    fifty_shot_idx = [-100]
-    hund_shot_idx = [-100]
+    # 예측 성능을 기록할 Dictionary Intialization 
+    corr_dict = {'10':[], '30':[], '50':[], '100':[]} 
+    cod_dict = {'10':[], '30':[], '50':[], '100':[]} 
+     # 1 ~ (iteration+1)번 모델까지 어떤 node가 가장 높은 성능을 보이는 지 저장할 리스트 
+    max_cod_dict = {'10':[-100], '30':[-100], '50':[-100], '100':[-100]}
 
-    
-    test_iq_corr_10 = []
-    test_iq_cod_10 = []
-    test_iq_corr_30 = []
-    test_iq_cod_30 = []
-    test_iq_corr_50 = []
-    test_iq_cod_50 = []
-    test_iq_corr_100 = []
-    test_iq_cod_100 = []
     dnn_kshot_cods = []
     adft_kshot_cods = []
     
@@ -247,14 +225,8 @@ def advanced_finetuning(df, pheno_with_iq, k_num_list, data_file_name, batch_siz
                 max_cod_idx = get_kshot_idx(basic_model, kshot_df, kshot_pheno, k_num, generator, device, seed)
 
                 print(f"MAX R2 score Node index is : {max_cod_idx}")
-                if k_num == 10: 
-                    ten_shot_idx.append(max_cod_idx) 
-                elif k_num == 30: 
-                    thirty_shot_idx.append(max_cod_idx) 
-                elif k_num == 50: 
-                    fifty_shot_idx.append(max_cod_idx) 
-                elif k_num == 100: 
-                    hund_shot_idx.append(max_cod_idx) 
+
+                max_cod_dict[str(k_num)].append(max_cod_idx)
 
             print("Best Node Selection 끝")
 
@@ -265,24 +237,13 @@ def advanced_finetuning(df, pheno_with_iq, k_num_list, data_file_name, batch_siz
 
                 basic_model_pth = f'D:/meta_matching_data/model_pth/{data_file_name}/{seed}_dnn4l_adamw_{data_file_name}.pth'
                 fine_tuned_model_pth = f'D:/meta_matching_data/model_pth/{data_file_name}/{seed}_k_{k_num}_fine_tuned_dnn4l_adamw_{data_file_name}.pth'
-             
-                if k_num == 10: 
-                    max_cod_list = ten_shot_idx
-                elif k_num == 30: 
-                    max_cod_list = thirty_shot_idx
-                elif k_num == 50: 
-                    max_cod_list = fifty_shot_idx
-                elif k_num == 100: 
-                    max_cod_list = hund_shot_idx
-
+                max_cod_list = max_cod_dict[str(k_num)]
                 max_cod_idx = max_cod_list[seed]
                 fine_tune_model = get_kshot_model(basic_model_pth, max_cod_idx) # Basic DNN에서 best node만 뽑아 구조를 변경한 모델
                 dnn_k_shot_r2, adft_kshot_r2 = kshot_fine_tuning(fine_tune_model, kshot_df, kshot_pheno, max_cod_idx, fine_tuned_model_pth, generator, device, seed, data_file_name)
 
                 dnn_kshot_cods.append(dnn_k_shot_r2)
                 adft_kshot_cods.append(adft_kshot_r2)
-
-                # max_cod_idx = get_kshot_idx(fine_tune_model, kshot_df, kshot_pheno, k_num, generator, device, seed) # 278번째 줄이 없어서, 코드가 제대로 돌아가지 않았었는데, 이 부분을 넣어서 그동안 잘못 돌아갔던 것.
                 
                 iq_corr, iq_cod = test_finetuned_model(fine_tuned_model_pth, test_df, test_pheno, max_cod_idx, generator, seed)
 
@@ -290,50 +251,29 @@ def advanced_finetuning(df, pheno_with_iq, k_num_list, data_file_name, batch_siz
                 print(f"R2 Score :{iq_cod:.4f}".rjust(50))
                 print('\n\n\n')
 
+                corr_dict[str(k_num)].append(iq_corr)
+                cod_dict[str(k_num)].append(iq_cod)
 
-                if k_num == 10: 
-                    test_iq_corr_10.append(iq_corr) 
-                    test_iq_cod_10.append(iq_cod)
-                elif k_num == 30: 
-                    test_iq_corr_30.append(iq_corr)
-                    test_iq_cod_30.append(iq_cod)
-                elif k_num ==50: 
-                    test_iq_corr_50.append(iq_corr) 
-                    test_iq_cod_50.append(iq_cod)
-                elif k_num == 100: 
-                    test_iq_corr_100.append(iq_corr) 
-                    test_iq_cod_100.append(iq_cod) 
         print('\n\n\n\n')
         print("FINE TUNING 완료")
     else:
-        print("FINE TUNING을 건너뜁니다.")    
+        print("FINE TUNING을 건너뜁니다.")   
+     
+
+    for key in k_num_list: 
+        max_cod_dict[str(key)] = max_cod_dict[str(key)][1:]
+
     
-    print(f"K=10 : Average COD : {np.mean(test_iq_cod_10):.4f}")
-    print(f"K=10 : STD     COD : {np.std(test_iq_cod_10):.4f}")
-    print()
-    print(f"K=10 : Average Corr : {np.mean(test_iq_corr_10):.4f}")
-    print(f"K=10 : STD     Corr : {np.std(test_iq_corr_10):.4f}")
-    print('\n\n')
-    print(f"K=30 : Average COD : {np.mean(test_iq_cod_30):.4f}")
-    print(f"K=30 : STD     COD : {np.std(test_iq_cod_30):.4f}")
-    print()
-    print(f"K=30 : Average Corr : {np.mean(test_iq_corr_30):.4f}")
-    print(f"K=30 : STD     Corr : {np.std(test_iq_corr_30):.4f}")
-    print('\n\n')
-    print(f"K=50 : Average COD : {np.mean(test_iq_cod_50):.4f}")
-    print(f"K=50 : STD     COD : {np.std(test_iq_cod_50):.4f}")
-    print()
-    print(f"K=50 : Average Corr : {np.mean(test_iq_corr_50):.4f}")
-    print(f"K=50 : STD     Corr : {np.std(test_iq_corr_50):.4f}")
-    print('\n\n')
-    print(f"K=100 : Average COD : {np.mean(test_iq_cod_100):.4f}")
-    print(f"K=100 : STD     COD : {np.std(test_iq_cod_100):.4f}")
-    print()
-    print(f"K=100 : Average Corr : {np.mean(test_iq_corr_100):.4f}")
-    print(f"K=100 : STD     Corr : {np.std(test_iq_corr_100):.4f}")   
-            
-    
-    return test_iq_corr_10, test_iq_cod_10, test_iq_corr_30, test_iq_cod_30, test_iq_corr_50, test_iq_cod_50, test_iq_corr_100, test_iq_cod_100, ten_shot_idx[1:], thirty_shot_idx[1:], fifty_shot_idx[1:], hund_shot_idx[1:], dnn_kshot_cods, adft_kshot_cods
+    for key in k_num_list: 
+        if len(cod_dict[str(key)]) != 0: 
+            print(f"K={key} : Average COD : {np.mean(cod_dict[str(key)]):.4f}")
+            print(f"K={key} : STD     COD : {np.std(cod_dict[str(key)]):.4f}")
+            print()
+            print(f"K={key} : Average Corr : {np.mean(corr_dict[str(key)]):.4f}")
+            print(f"K={key} : STD     Corr : {np.std(corr_dict[str(key)]):.4f}")
+
+                
+    return corr_dict, cod_dict, max_cod_dict, dnn_kshot_cods, adft_kshot_cods
    
 # corrs_10, cods_10, corrs_30, cods_30, corrs_50, cods_50, corrs_100, cods_100 = \
 #           advanced_finetuning(df, pheno_with_iq, k_num_list=[10,30,50, 100], batch_size=128, iteration=100)

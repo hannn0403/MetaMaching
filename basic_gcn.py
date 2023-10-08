@@ -265,33 +265,16 @@ def basic_gcn(df, pheno_with_iq, k_num_list, data_file_name, iteration, only_tes
 
                 print("Epoch : {:03d}, Train Loss: {:.5f}, Val Loss: {:.5f}".format(epoch+1, train_loss, val_loss))
 
-
-            # 해당 iteration의 train_loss와 val_loss를 가지고 plot을 생성 
-            loss_img_pth = f"D:/meta_matching_data/model_pth/plot/{data_file_name}/{seed}_gcn_adamw_{data_file_name}.png"
-            loss_img_folder_pth = f"d:/meta_matching_data/model_pth/plot/{data_file_name}"
-            if not os.path.exists(loss_img_folder_pth):
-                os.makedirs(loss_img_folder_pth)
-                print(f"{loss_img_folder_pth}가 생성되었습니다!")
-            # save_iteration_loss_plot(train_losses, val_losses, loss_img_pth, seed)
         print('==========================================학습을 완료하였습니다.==========================================')
         print('\n\n')
     else: 
         print("학습을 건너뜁니다.")
 
-    corrs_10 = []
-    corrs_30 = []
-    corrs_50 = []
-    corrs_100 = []
-    cods_10 = []
-    cods_30 = []
-    cods_50 = [] 
-    cods_100 = []
-
-
-    best_node_10 = []
-    best_node_30 = []
-    best_node_50 = []
-    best_node_100 = []
+    
+    # 예측 성능을 기록할 Dictionary Intialization 
+    corr_dict = {'10':[], '30':[], '50':[], '100':[]} 
+    cod_dict = {'10':[], '30':[], '50':[], '100':[]} 
+    best_node_dict = {'10':[], '30':[], '50':[], '100':[]} 
     
     # K-shot / Test 성능 측정 
     for seed in range(1, iteration+1): 
@@ -326,53 +309,23 @@ def basic_gcn(df, pheno_with_iq, k_num_list, data_file_name, iteration, only_tes
             max_cod_idx = get_gcn_kshot_idx(model, kshot_loader, kshot_iq)
             test_corr, test_cod = GCN_test(model, test_loader, test_iq, max_cod_idx, device)
 
-
-            if k_num == 10 : 
-                corrs_10.append(test_corr)
-                cods_10.append(test_cod)
-                best_node_10.append(max_cod_idx)
-            elif k_num == 30: 
-                corrs_30.append(test_corr)
-                cods_30.append(test_cod)
-                best_node_30.append(max_cod_idx)
-            elif k_num == 50:
-                corrs_50.append(test_corr)
-                cods_50.append(test_cod)
-                best_node_50.append(max_cod_idx)
-            elif k_num == 100: 
-                corrs_100.append(test_corr) 
-                cods_100.append(test_cod)       
-                best_node_100.append(max_cod_idx)     
+            corr_dict[str(k_num)].append(test_corr)
+            cod_dict[str(k_num)].append(test_cod)
+            best_node_dict[str(k_num)].append(max_cod_idx)
             print(f"Iteration {seed} | K = {k_num} : Corr - {test_corr:.4f} & R2 - {test_cod:.4f}")
         print('\n\n')
 
-    print(f"K=10 : Average COD : {np.mean(cods_10)}")
-    print(f"K=10 : STD     COD : {np.std(cods_10)}")
-    print()
-    print(f"K=10 : Average Corr : {np.mean(corrs_10)}")
-    print(f"K=10 : STD     Corr : {np.std(corrs_10)}")
-    print('\n\n')
-    print(f"K=30 : Average COD : {np.mean(cods_30)}")
-    print(f"K=30 : STD     COD : {np.std(cods_30)}")
-    print()
-    print(f"K=30 : Average Corr : {np.mean(corrs_30)}")
-    print(f"K=30 : STD     Corr : {np.std(corrs_30)}")
-    print('\n\n')
-    print(f"K=50 : Average COD : {np.mean(cods_50)}")
-    print(f"K=50 : STD     COD : {np.std(cods_50)}")
-    print()
-    print(f"K=50 : Average Corr : {np.mean(corrs_50)}")
-    print(f"K=50 : STD     Corr : {np.std(corrs_50)}")
-    print('\n\n')
-    print(f"K=100 : Average COD : {np.mean(cods_100)}")
-    print(f"K=100 : STD     COD : {np.std(cods_100)}")
-    print()
-    print(f"K=100 : Average Corr : {np.mean(corrs_100)}")
-    print(f"K=100 : STD     Corr : {np.std(corrs_100)}")   
-            
+
+    for key in k_num_list: 
+        if len(cod_dict[str(key)]) != 0: 
+            print(f"K={str(key)} : Average COD : {np.mean(cod_dict[str(key)])}")
+            print(f"K={str(key)} : STD     COD : {np.std(cod_dict[str(key)])}")
+            print()
+            print(f"K={str(key)} : Average Corr : {np.mean(corr_dict[str(key)])}")
+            print(f"K={str(key)} : STD     Corr : {np.std(corr_dict[str(key)])}")
+            print('\n\n')    
         
-        
-    return corrs_10, cods_10, corrs_30, cods_30, corrs_50, cods_50, corrs_100, cods_100, best_node_10, best_node_30, best_node_50, best_node_100
+    return corr_dict, cod_dict, best_node_dict
     
     
 def basic_dgcnn(df, pheno_with_iq, k_num_list, data_file_name, iteration, only_test=False): 
@@ -426,33 +379,16 @@ def basic_dgcnn(df, pheno_with_iq, k_num_list, data_file_name, iteration, only_t
 
                 print("Epoch : {:03d}, Train Loss: {:.5f}, Val Loss: {:.5f}".format(epoch+1, train_loss, val_loss))
 
-
-            # 해당 iteration의 train_loss와 val_loss를 가지고 plot을 생성 
-            loss_img_pth = f"D:/meta_matching_data/model_pth/plot/{data_file_name}/{seed}_dgcnn_adamw_{data_file_name}.png"
-            loss_img_folder_pth = f"d:/meta_matching_data/model_pth/plot/{data_file_name}"
-            if not os.path.exists(loss_img_folder_pth):
-                os.makedirs(loss_img_folder_pth)
-                print(f"{loss_img_folder_pth}가 생성되었습니다!")
-            # save_iteration_loss_plot(train_losses, val_losses, loss_img_pth, seed)
         print('==========================================학습을 완료하였습니다.==========================================')
         print('\n\n')
     else: 
         print("학습을 건너뜁니다.")
 
-    corrs_10 = []
-    corrs_30 = []
-    corrs_50 = []
-    corrs_100 = []
-    cods_10 = []
-    cods_30 = []
-    cods_50 = [] 
-    cods_100 = []
 
-
-    best_node_10 = []
-    best_node_30 = []
-    best_node_50 = []
-    best_node_100 = []
+    # 예측 성능을 기록할 Dictionary Intialization 
+    corr_dict = {'10':[], '30':[], '50':[], '100':[]} 
+    cod_dict = {'10':[], '30':[], '50':[], '100':[]} 
+    best_node_dict = {'10':[], '30':[], '50':[], '100':[]} 
     
     # K-shot / Test 성능 측정 
     for seed in range(1, iteration+1): 
@@ -466,7 +402,6 @@ def basic_dgcnn(df, pheno_with_iq, k_num_list, data_file_name, iteration, only_t
         state_dict = torch.load(model_pth)
         model.load_state_dict(state_dict)
         model.to(device)
-
 
         for k_num in k_num_list: 
             print(f"==========================================K : {k_num}==========================================")
@@ -488,52 +423,24 @@ def basic_dgcnn(df, pheno_with_iq, k_num_list, data_file_name, iteration, only_t
             test_corr, test_cod = GCN_test(model, test_loader, test_iq, max_cod_idx, device)
 
 
-            if k_num == 10 : 
-                corrs_10.append(test_corr)
-                cods_10.append(test_cod)
-                best_node_10.append(max_cod_idx)
-            elif k_num == 30: 
-                corrs_30.append(test_corr)
-                cods_30.append(test_cod)
-                best_node_30.append(max_cod_idx)
-            elif k_num == 50:
-                corrs_50.append(test_corr)
-                cods_50.append(test_cod)
-                best_node_50.append(max_cod_idx)
-            elif k_num == 100: 
-                corrs_100.append(test_corr) 
-                cods_100.append(test_cod)       
-                best_node_100.append(max_cod_idx)     
+            corr_dict[str(k_num)].append(test_corr)
+            cod_dict[str(k_num)].append(test_cod)
+            best_node_dict[str(k_num)].append(max_cod_idx)     
             print(f"Iteration {seed} | K = {k_num} : Corr - {test_corr:.4f} & R2 - {test_cod:.4f}")
         print('\n\n')
 
-    print(f"K=10 : Average COD : {np.mean(cods_10)}")
-    print(f"K=10 : STD     COD : {np.std(cods_10)}")
-    print()
-    print(f"K=10 : Average Corr : {np.mean(corrs_10)}")
-    print(f"K=10 : STD     Corr : {np.std(corrs_10)}")
-    print('\n\n')
-    print(f"K=30 : Average COD : {np.mean(cods_30)}")
-    print(f"K=30 : STD     COD : {np.std(cods_30)}")
-    print()
-    print(f"K=30 : Average Corr : {np.mean(corrs_30)}")
-    print(f"K=30 : STD     Corr : {np.std(corrs_30)}")
-    print('\n\n')
-    print(f"K=50 : Average COD : {np.mean(cods_50)}")
-    print(f"K=50 : STD     COD : {np.std(cods_50)}")
-    print()
-    print(f"K=50 : Average Corr : {np.mean(corrs_50)}")
-    print(f"K=50 : STD     Corr : {np.std(corrs_50)}")
-    print('\n\n')
-    print(f"K=100 : Average COD : {np.mean(cods_100)}")
-    print(f"K=100 : STD     COD : {np.std(cods_100)}")
-    print()
-    print(f"K=100 : Average Corr : {np.mean(corrs_100)}")
-    print(f"K=100 : STD     Corr : {np.std(corrs_100)}")   
+    for key in k_num_list: 
+        if len(cod_dict[str(key)]) != 0: 
+            print(f"K={str(key)} : Average COD : {np.mean(cod_dict[str(key)])}")
+            print(f"K={str(key)} : STD     COD : {np.std(cod_dict[str(key)])}")
+            print()
+            print(f"K={str(key)} : Average Corr : {np.mean(corr_dict[str(key)])}")
+            print(f"K={str(key)} : STD     Corr : {np.std(corr_dict[str(key)])}")
+            print('\n\n')   
             
         
         
-    return corrs_10, cods_10, corrs_30, cods_30, corrs_50, cods_50, corrs_100, cods_100, best_node_10, best_node_30, best_node_50, best_node_100
+    return corr_dict, cod_dict, best_node_dict
     
 
     

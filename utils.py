@@ -337,6 +337,12 @@ def viz_node_corr(data_file_name):
     plt.savefig(f"D:meta_matching_data/node_corr/plot/{data_file_name}/{data_file_name}_k100.png", dpi=300, bbox_inches='tight', pad_inches=0)
     
     
+def make_dirs(path): 
+    if not os.path.exists(path): 
+        print(f"{path}를 생성합니다.")
+        os.makedirs(path)
+    else: 
+        print(f"{path}가 존재합니다.")
 
 
 def save_results(cods, corrs, data_file_name, model_name): 
