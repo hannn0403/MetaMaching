@@ -354,14 +354,14 @@ class dnn_4l(nn.Module):
         )
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                init.xavier_uniform_(m.weight)
+                init.kaiming_normal_(m.weight)
             elif isinstance(m, nn.Conv1d):
-                init.xavier_uniform_(m.weight)
+                init.kaiming_normal_(m.weight)
             elif isinstance(m, nn.BatchNorm1d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
             elif isinstance(m, nn.Linear):
-                init.xavier_uniform_(m.weight)
+                init.kaiming_normal_(m.weight)
 
     def forward(self, x):
         x = self.fc1(x)

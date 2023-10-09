@@ -15,7 +15,7 @@ import torch.nn as nn
 from collections import Counter
 from sklearn.metrics import r2_score
 from torch.utils.data import DataLoader
-from torch.optim.lr_scheduler import CosineAnnealingLR
+from torch.optim.lr_scheduler import CosineAnnealingLR, CosineAnnealingWarmRestarts
 import torch.optim as optim
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -37,13 +37,14 @@ def get_kshot_model(model_pth, max_cod_idx):
     after_model = torch.load(model_pth)
     
     # 변화시키려는 모델의 마지막 layer를 (64, 1)의 shape을 가지도록 만든다. (다른 조건들은 동일하게 유지)
-    after_model.fc4 = nn.Sequential(nn.Dropout(p=0.3, inplace=False),
+    after_model.fc4 = nn.Sequential(nn.Dropout(p=0.2, inplace=False),
                           nn.Linear(in_features=64, out_features=1, bias=True))
     
     
     with torch.no_grad():
         after_model.fc4[1].weight = nn.Parameter(before_model.fc4[1].weight[max_cod_idx:max_cod_idx+1, :])
         after_model.fc4[1].bias = nn.Parameter(before_model.fc4[1].bias[max_cod_idx:max_cod_idx+1])
+        
         
     for param in after_model.fc3.parameters():
         param.requires_grad = True 
@@ -55,13 +56,17 @@ def get_kshot_model(model_pth, max_cod_idx):
     return after_model
 
 
+
 def kshot_fine_tuning(model, kshot_df, kshot_pheno, max_cod_idx, fine_tuned_model_pth, generator, device, seed, data_file_name): 
     
     # epochs_to_decrease_lr=30
     
+    
     # last 2 layers update
-    optimizer = torch.optim.AdamW([{'params': model.fc3.parameters()}, {'params': model.fc4.parameters()}], lr=1e-05, weight_decay=0.4)
-    scheduler = CosineAnnealingLR(optimizer, T_max=20)
+    optimizer = torch.optim.AdamW([{'params': model.fc3.parameters()}, {'params': model.fc4.parameters()}], lr=1e-05, weight_decay=0.1)
+    #scheduler = CosineAnnealingLR(optimizer, T_max=20)
+    scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=50, T_mult=2, eta_min=1e-08)
+    
     loss_function = nn.MSELoss()
 
     kshot_train_df, kshot_val_df, kshot_train_pheno, kshot_val_pheno = \
@@ -145,7 +150,7 @@ def kshot_fine_tuning(model, kshot_df, kshot_pheno, max_cod_idx, fine_tuned_mode
 
         epoch += 1
 
-    loss_img_pth = f'D:/meta_matching_data/model_pth/plot/fine_tune_{data_file_name}/{seed}_K_{kshot_train_df.shape[0]}_fine_tuned_dnn4l_adamw_{data_file_name}.png'
+    loss_img_pth = f'D:/meta_matching_data/model_pth/plot/fine_tune_{data_file_name}/{seed}_K_{kshot_train_df.shape[0]}_fine_tuned_{data_file_name}.png'
     folder_pth = f"d:/meta_matching_data/model_pth/plot/fine_tune_{data_file_name}"
     make_dirs(folder_pth)
     save_iteration_loss_plot(train_loss_list, val_loss_list, loss_img_pth, seed)
@@ -212,7 +217,7 @@ def advanced_finetuning(df, pheno_with_iq, k_num_list, data_file_name, batch_siz
             generator = torch.Generator()
             generator.manual_seed(seed)
             # 학습 완료된 모델 Load 
-            model_pth = f"D:/meta_matching_data/model_pth/{data_file_name}/{seed}_dnn4l_adamw_{data_file_name}.pth"
+            model_pth = f"D:/meta_matching_data/model_pth/{data_file_name}/{seed}_dnn_{data_file_name}.pth"
             basic_model = torch.load(model_pth)
 
             # Fine-Tuning 이전 K Sample을 가지고 각각 어떤 Node가 가장 높은 성능을 보이는 지 확인 및 저장
@@ -235,8 +240,8 @@ def advanced_finetuning(df, pheno_with_iq, k_num_list, data_file_name, batch_siz
             for k_num in k_num_list: 
                 _, _, _, _, kshot_df, kshot_pheno, test_df, test_pheno= preprocess_data(df, pheno_with_iq, test_size, k_num, seed)
 
-                basic_model_pth = f'D:/meta_matching_data/model_pth/{data_file_name}/{seed}_dnn4l_adamw_{data_file_name}.pth'
-                fine_tuned_model_pth = f'D:/meta_matching_data/model_pth/{data_file_name}/{seed}_k_{k_num}_fine_tuned_dnn4l_adamw_{data_file_name}.pth'
+                basic_model_pth = f'D:/meta_matching_data/model_pth/{data_file_name}/{seed}_dnn_{data_file_name}.pth'
+                fine_tuned_model_pth = f'D:/meta_matching_data/model_pth/{data_file_name}/{seed}_k_{k_num}_fine_tuned_{data_file_name}.pth'
                 max_cod_list = max_cod_dict[str(k_num)]
                 max_cod_idx = max_cod_list[seed]
                 fine_tune_model = get_kshot_model(basic_model_pth, max_cod_idx) # Basic DNN에서 best node만 뽑아 구조를 변경한 모델

@@ -14,7 +14,7 @@ import torch.nn as nn
 from collections import Counter
 from sklearn.metrics import r2_score
 from torch.utils.data import DataLoader
-from torch.optim.lr_scheduler import CosineAnnealingLR
+from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 import torch.optim as optim
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -42,22 +42,27 @@ def basic_dnn_training(train_df, train_pheno, val_df, val_pheno, batch_size, gen
     val_dataloader = get_dataloader(val_df, val_pheno, batch_size, generator, device)
     
     # Model Initialization
-    model = dnn_4l(train_df.shape[1], 128, 512, 64, 0.3, train_pheno.shape[1]).to(device)
+    model = dnn_4l(train_df.shape[1], 128, 512, 64, 0.2, train_pheno.shape[1]).to(device)
+    
+    model.to(device) 
     loss_function = nn.MSELoss()
-    optimizer = optim.AdamW(model.parameters(), lr=1e-03, weight_decay=0.4)
-    scheduler = CosineAnnealingLR(optimizer, T_max=20)
+    # epochs_to_decrease_lr = 200
+    optimizer = optim.AdamW(model.parameters(), lr=1e-04, weight_decay=0.01) # Learning Rate를 확 줄여보았다. 
+    scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=50, T_mult=2, eta_min=1e-08)
+
     
     # 모든 Epoch에 대한 train loss와 val loss를 저장할 리스트 
     train_losses = []
     val_losses = []
     
-    model_pth = f"D:/meta_matching_data/model_pth/{data_file_name}/{seed}_dnn4l_adamw_{data_file_name}.pth"
+    model_pth = f"D:/meta_matching_data/model_pth/{data_file_name}/{seed}_dnn_{data_file_name}.pth"
     folder_path = f"D:/meta_matching_data/model_pth/{data_file_name}"
+
     make_dirs(folder_path)
         
     
     # Epoch Configuration
-    num_epochs = 200
+    num_epochs = 5000
     
     for epoch in range(num_epochs):
         # Training 
@@ -90,13 +95,15 @@ def basic_dnn_training(train_df, train_pheno, val_df, val_pheno, batch_size, gen
         
 
         # Saving Best Model 
-        if best_loss > val_loss: 
+        if (epoch >= 50) and (best_loss > val_loss): 
             best_loss = val_loss 
-            torch.save(model, model_pth)
+            torch.save(model, model_pth) 
             print(f"Epoch : {epoch}   Best Model! \t : Train Loss - {train_loss:.4f} | Val Loss - {val_loss:.4f}")
-        elif epoch % 50 == 0: 
+        
+        elif epoch % 200 == 0: 
             print(f"Epoch : {epoch}               \t : Train Loss - {train_loss:.4f} | Val Loss - {val_loss:.4f}")
     
+        
     return train_losses, val_losses
 
 
@@ -150,7 +157,7 @@ def test_model(model, test_df, test_pheno, test_age, max_cod_idx, batch_size, ge
             
     test_outputs = torch.cat(test_outputs).cpu().detach().numpy()
     test_outputs= test_outputs[:, max_cod_idx].reshape(-1, 1) 
-    pred_df = pd.DataFrame({'prediction' : test_outputs.flatten(), 'Age':test_age.flatten()})
+    pred_df = pd.DataFrame({'prediction' : test_outputs.flatten(), 'IQ':test_age.flatten()})
     
     age_cod = get_cod_score(pred_df)
     age_corr = get_corr_score(pred_df)
@@ -183,7 +190,7 @@ def basic_dnn(df, pheno_with_age, k_num_list, data_file_name, batch_size=128, it
                     basic_dnn_training(train_df, train_pheno, val_df, val_pheno, batch_size, generator, seed, data_file_name)
 
             # 해당 Iteration의 train_loss와 val_loss를 가지고 plot을 생성 
-            loss_img_pth = f'D:meta_matching_data/model_pth/plot/{data_file_name}/{seed}_dnn4l_adamw_{data_file_name}.png' 
+            loss_img_pth = f'D:meta_matching_data/model_pth/plot/{data_file_name}/{seed}_dnn_{data_file_name}.png' 
             loss_img_folder_pth = f"d:/meta_matching_data/model_pth/plot/{data_file_name}"
             make_dirs(loss_img_folder_pth)
             save_iteration_loss_plot(train_losses, val_losses, loss_img_pth, seed)
@@ -205,7 +212,7 @@ def basic_dnn(df, pheno_with_age, k_num_list, data_file_name, batch_size=128, it
         generator.manual_seed(seed) 
         
         # MODEL LOAD
-        model_pth = f"D:/meta_matching_data/model_pth/{data_file_name}/{seed}_dnn4l_adamw_{data_file_name}.pth"
+        model_pth = f"D:/meta_matching_data/model_pth/{data_file_name}/{seed}_dnn_{data_file_name}.pth"
         model = torch.load(model_pth)
         
         ######### K-SHOT LEARNING #########
