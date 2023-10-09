@@ -110,8 +110,6 @@ def get_predict_df(model, df, pheno_with_iq, k_num, generator, seed):
             test_pred_df = pd.DataFrame({'IQ': test_iq, f"prediction_{i}":test_outputs[i]})
         else: 
             test_pred_df[f"prediction_{i}"]=test_outputs[i]
-        
-    
     
     kshot_pred_df = kshot_pred_df.loc[:, column_list]
     test_pred_df = test_pred_df.loc[:, column_list]
@@ -120,29 +118,19 @@ def get_predict_df(model, df, pheno_with_iq, k_num, generator, seed):
     
     
 def advanced_stacking(df, pheno_with_iq, k_num_list, data_file_name, batch_size=128, iteration=10):
-    device='cuda'
-    
-    iq_corr_10 = []
-    iq_cod_10 = []
-    iq_corr_30 = []
-    iq_cod_30 = []
-    iq_corr_50 = []
-    iq_cod_50 = []
-    iq_corr_100 = []
-    iq_cod_100 = []
-    best_node_10 = []
-    best_node_30 = []
-    best_node_50 = []
-    best_node_100 = []
 
-    corr_dict = {}
+    # 예측 성능을 기록할 Dictionary Intialization 
+    corr_dict = {'10':[], '30':[], '50':[], '100':[]} 
+    cod_dict = {'10':[], '30':[], '50':[], '100':[]} 
+    best_node_dict = {'10':[], '30':[], '50':[], '100':[]} 
+
+    iter_corr_dict = {}
 
     for seed in range(1, iteration+1):
         basic_model_pth = f'D:/meta_matching_data/model_pth/{data_file_name}/{seed}_dnn4l_adamw_{data_file_name}.pth'
         set_random_seeds(seed)
         generator = torch.Generator()
         generator.manual_seed(seed) 
-
         basic_model = torch.load(basic_model_pth)
 
         for k_num in k_num_list: 
@@ -150,9 +138,8 @@ def advanced_stacking(df, pheno_with_iq, k_num_list, data_file_name, batch_size=
             # Secondary Model(KRR)에 들어갈 INPUT (K-shot & test) 
             kshot_pred_df, test_pred_df, top_k_indices, kshot_iq_corrs = get_predict_df(basic_model, df, pheno_with_iq, k_num, generator, seed) 
 
-
             # 각 Iteration의 각 Node에 대한 correlation list 
-            corr_dict[f'iter_{seed}_k_{k_num}'] = kshot_iq_corrs
+            iter_corr_dict[f'iter_{seed}_k_{k_num}'] = kshot_iq_corrs
             
             # Hyperparam Tuning 
             kshot_x = kshot_pred_df.drop('IQ', axis=1)
@@ -181,60 +168,25 @@ def advanced_stacking(df, pheno_with_iq, k_num_list, data_file_name, batch_size=
             iq_cod = get_cod_score(final_pred_df)
 
             # Prediction의 COD와 Corr에 대한 결과 리스트 정리
-            if k_num==10:
-                iq_corr_10.append(iq_corr) 
-                iq_cod_10.append(iq_cod)
-                best_node_10.append(top_k_indices)
-            elif k_num == 30: 
-                iq_corr_30.append(iq_corr) 
-                iq_cod_30.append(iq_cod)
-                best_node_30.append(top_k_indices)
-            elif k_num == 50: 
-                iq_corr_50.append(iq_corr) 
-                iq_cod_50.append(iq_cod)
-                best_node_50.append(top_k_indices)
-            elif k_num == 100: 
-                iq_corr_100.append(iq_corr) 
-                iq_cod_100.append(iq_cod)
-                best_node_100.append(top_k_indices)
-               
+
+            corr_dict[str(k_num)].append(iq_corr) 
+            cod_dict[str(k_num)].append(iq_cod)
+            best_node_dict[str(k_num)].append(top_k_indices)               
             print(f"Iteration {seed}, K : {k_num} - Correlation :{iq_corr:.4f}".rjust(50))
             print(f"R2 Score :{iq_cod:.4f}".rjust(50))
         print('\n\n\n')
     
-    corr_df = pd.DataFrame(corr_dict) 
-    # corr_df.to_csv('D:/meta_matching_data/node_corr/')
+    iter_corr_df = pd.DataFrame(iter_corr_dict) 
 
-    if len(iq_corr_10) != 0: 
-        print(f"K=10 : Average COD : {np.mean(iq_cod_10):.4f}")
-        print(f"K=10 : STD     COD : {np.std(iq_cod_10):.4f}")
-        print()
-        print(f"K=10 : Average Corr : {np.mean(iq_corr_10):.4f}")
-        print(f"K=10 : STD     Corr : {np.std(iq_corr_10):.4f}")
-        print('\n\n')
-    if len(iq_corr_10) != 0: 
-        print(f"K=30 : Average COD : {np.mean(iq_cod_30):.4f}")
-        print(f"K=30 : STD     COD : {np.std(iq_cod_30):.4f}")
-        print()
-        print(f"K=30 : Average Corr : {np.mean(iq_corr_30):.4f}")
-        print(f"K=30 : STD     Corr : {np.std(iq_corr_30):.4f}")
-        print('\n\n')
-    if len(iq_corr_50) != 0: 
-        print(f"K=50 : Average COD : {np.mean(iq_cod_50):.4f}")
-        print(f"K=50 : STD     COD : {np.std(iq_cod_50):.4f}")
-        print()
-        print(f"K=50 : Average Corr : {np.mean(iq_corr_50):.4f}")
-        print(f"K=50 : STD     Corr : {np.std(iq_corr_50):.4f}")
-        print('\n\n')
-    if len(iq_corr_100) != 0: 
-        print(f"K=100 : Average COD : {np.mean(iq_cod_100):.4f}")
-        print(f"K=100 : STD     COD : {np.std(iq_cod_100):.4f}")
-        print()
-        print(f"K=100 : Average Corr : {np.mean(iq_corr_100):.4f}")
-        print(f"K=100 : STD     Corr : {np.std(iq_corr_100):.4f}")               
+    for key in k_num_list: 
+        if len(cod_dict[str(key)]) != 0: 
+            print(f"K={key} : Average COD : {np.mean(cod_dict[str(key)])}")
+            print(f"K={key} : STD     COD : {np.std(cod_dict[str(key)])}")
+            print()
+            print(f"K={key} : Average Corr : {np.mean(corr_dict[str(key)])}")
+            print(f"K={key} : STD     Corr : {np.std(corr_dict[str(key)])}") 
     
-    
-    return iq_cod_10, iq_corr_10, iq_cod_30, iq_corr_30, iq_cod_50, iq_corr_50, iq_cod_100, iq_corr_100, best_node_10, best_node_30, best_node_50, best_node_100, corr_df
+    return corr_dict, cod_dict, best_node_dict, iter_corr_df
     
     
 # advanced_stacking(df, pheno_with_iq, [10, 30, 50, 100], batch_size=128, iteration=100)

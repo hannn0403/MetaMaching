@@ -337,14 +337,25 @@ def viz_node_corr(data_file_name):
     plt.savefig(f"D:meta_matching_data/node_corr/plot/{data_file_name}/{data_file_name}_k100.png", dpi=300, bbox_inches='tight', pad_inches=0)
     
     
+def make_dirs(path): 
+    if not os.path.exists(path): 
+        print(f"{path}를 생성합니다.")
+        os.makedirs(path)
+    else: 
+        print(f"{path}가 존재합니다.")
 
 
 def save_results(cods, corrs, data_file_name, model_name): 
     #dnn
-    df1 = pd.DataFrame(cods).T
-    df2 = pd.DataFrame(corrs).T
-
-    columns = ['cods_k10', 'cods_k30', 'cods_k50', 'cods_k100','corrs_k10', 'corrs_k30', 'corrs_k50', 'corrs_k100']
+    df1 = pd.DataFrame(cods)
+    df2 = pd.DataFrame(corrs)
+    cod_cols = df1.columns.tolist()
+    corr_cols = df2.columns.tolist() 
+    for i in range(len(cod_cols)): 
+        cod_cols[i] = 'cods_k' + cod_cols[i]
+        corr_cols[i] = 'corrs_k' + corr_cols[i]
+        
+    columns = cod_cols + corr_cols
     df = pd.concat([df1, df2], axis=1)
     df.columns = columns
     df.to_csv(f'D:/meta_matching_data/results/csv/{data_file_name}_{model_name}.csv')
