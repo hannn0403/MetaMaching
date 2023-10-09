@@ -26,6 +26,7 @@ import matplotlib.pyplot as plt
 # import statsmodels.api as sm
 import matplotlib.patches as mpatches
 import warnings
+from utils import *
 warnings.filterwarnings("ignore")
 
 # 일단 K=100인 경우에 한해서 코드를 짤 계획이다. 
@@ -140,7 +141,7 @@ class PositionWiseFCFeedForwardNetwork(nn.Module):
     def __init__(self, d_model, d_ff):
         super().__init__()
         self.w_1 = nn.Linear(d_model,d_ff)
-        # self.relu = nn.ReLU()
+        self.relu = nn.ReLU()
         self.elu = nn.ELU()
         self.w_2 = nn.Linear(d_ff,d_model)
     
@@ -148,8 +149,8 @@ class PositionWiseFCFeedForwardNetwork(nn.Module):
         # Linear Layer1
         x = self.w_1(x)
         # ReLU
-        # x = self.relu(x)
-        x = self.elu(x) 
+        x = self.relu(x)
+        # x = self.elu(x) 
         # Linear Layer2
         x = self.w_2(x)
 
@@ -248,69 +249,26 @@ class Transformer(nn.Module):
 
 
 
-def transformer_stacking(pheno_with_iq, k_num=100, seed=1):
+def transformer_stacking(pheno_with_iq, f_list, d_model, option, seed):
     device='cuda' 
     set_random_seeds(seed)
     generator = torch.Generator()
     generator.manual_seed(seed) 
+
+    model_dict = {} 
+    for data_file_name in f_list: 
+        model_dict[data_file_name] = torch.load(f"D:/meta_matching_data/model_pth/{data_file_name}/{seed}_dnn4l_adamw_{data_file_name}.pth")
+        print(f"{data_file_name} Model Load Complete!")
     
-    # Load Model 
-    model_gamb = torch.load("D:/meta_matching_data/model_pth/functional_gamb/1_dnn4l_adamw_functional_gamb.pth")
-    model_lang = torch.load("D:/meta_matching_data/model_pth/functional_lang/1_dnn4l_adamw_functional_lang.pth")
-    model_wm = torch.load("D:/meta_matching_data/model_pth/functional_wm/1_dnn4l_adamw_functional_wm.pth")
-    model_social = torch.load("D:/meta_matching_data/model_pth/functional_social/1_dnn4l_adamw_functional_social.pth")
-    model_motor = torch.load("D:/meta_matching_data/model_pth/functional_motor/1_dnn4l_adamw_functional_motor.pth")
-    model_rs = torch.load("D:/meta_matching_data/model_pth/functional_restingstate/1_dnn4l_adamw_functional_restingstate.pth")
-    
-    # sMRI
-    model_area= torch.load("D:/meta_matching_data/model_pth/structural_area/1_dnn4l_adamw_structural_area.pth")
-    model_thick= torch.load("D:/meta_matching_data/model_pth/structural_thick/1_dnn4l_adamw_structural_thick.pth")
-    model_vol= torch.load("D:/meta_matching_data/model_pth/structural_vol/1_dnn4l_adamw_structural_vol.pth")
-    model_mind= torch.load("D:/meta_matching_data/model_pth/structural_mind/1_dnn4l_adamw_structural_mind.pth")
-    model_msn= torch.load("D:/meta_matching_data/model_pth/structural_msn/1_dnn4l_adamw_structural_msn.pth")
-    
-    # TBSS 
-    model_tbss_ad = torch.load("D:/meta_matching_data/model_pth/tbss_ad/1_dnn4l_adamw_tbss_ad.pth")
-    model_tbss_fa = torch.load("D:/meta_matching_data/model_pth/tbss_fa/1_dnn4l_adamw_tbss_fa.pth")
-    model_tbss_icvf = torch.load("D:/meta_matching_data/model_pth/tbss_icvf/1_dnn4l_adamw_tbss_icvf.pth")
-    model_tbss_isovf = torch.load("D:/meta_matching_data/model_pth/tbss_isovf/1_dnn4l_adamw_tbss_isovf.pth")
-    model_tbss_md = torch.load("D:/meta_matching_data/model_pth/tbss_md/1_dnn4l_adamw_tbss_md.pth")
-    model_tbss_od = torch.load("D:/meta_matching_data/model_pth/tbss_od/1_dnn4l_adamw_tbss_od.pth")
-    model_tbss_rd = torch.load("D:/meta_matching_data/model_pth/tbss_rd/1_dnn4l_adamw_tbss_rd.pth")
-    
-    model_tracto_ad = torch.load("D:/meta_matching_data/model_pth/tracto_ad/1_dnn4l_adamw_tracto_ad.pth")
-    model_tracto_fa = torch.load("D:/meta_matching_data/model_pth/tracto_fa/1_dnn4l_adamw_tracto_fa.pth")
-    model_tracto_fss = torch.load("D:/meta_matching_data/model_pth/tracto_fss/1_dnn4l_adamw_tracto_fss.pth")
-    model_tracto_fssl = torch.load("D:/meta_matching_data/model_pth/tracto_fssl/1_dnn4l_adamw_tracto_fssl.pth")
-    model_tracto_icvf = torch.load("D:/meta_matching_data/model_pth/tracto_icvf/1_dnn4l_adamw_tracto_icvf.pth")
-    model_tracto_isovf = torch.load("D:/meta_matching_data/model_pth/tracto_isovf/1_dnn4l_adamw_tracto_isovf.pth")
-    model_tracto_md = torch.load("D:/meta_matching_data/model_pth/tracto_md/1_dnn4l_adamw_tracto_md.pth")
-    model_tracto_od = torch.load("D:/meta_matching_data/model_pth/tracto_od/1_dnn4l_adamw_tracto_od.pth")
-    model_tracto_rd = torch.load("D:/meta_matching_data/model_pth/tracto_rd/1_dnn4l_adamw_tracto_rd.pth")
-    # f_list = ['functional_restingstate', 'functional_gamb', 'functional_lang','functional_wm', 'functional_social','functional_motor']
-    # model_list = [model_rs, model_gamb, model_lang, model_wm, model_social, model_motor]
-    # f_list = ['functional_wm', 'structural_area', 'tbss_ad','tracto_ad', 'functional_restingstate']
-    # model_list = [model_wm, model_area, model_tbss_ad, model_tracto_ad, model_rs]
-    
-    f_list = ['functional_restingstate', 'functional_gamb', 'functional_lang','functional_wm', 'functional_social','functional_motor',
-             'structural_area', 'structural_thick','structural_vol','structural_mind','structural_msn', 
-             'tbss_ad','tbss_fa','tbss_icvf','tbss_isovf','tbss_md','tbss_od','tbss_rd',
-             'tracto_ad','tracto_fa','tracto_fss','tracto_fssl','tracto_icvf','tracto_isovf','tracto_md','tracto_od','tracto_rd']
-    model_list = [model_rs, model_gamb, model_lang, model_wm, model_social, model_motor, 
-                 model_area, model_thick, model_vol, model_mind, model_msn, 
-                 model_tbss_ad, model_tbss_fa, model_tbss_icvf, model_tbss_isovf, model_tbss_md, model_tbss_od, model_tbss_rd,
-                 model_tracto_ad, model_tracto_fa, model_tracto_fss, model_tracto_fssl, model_tracto_icvf, model_tracto_isovf, 
-                 model_tracto_md, model_tracto_od, model_tracto_rd]
 
     # Basic DNN으로부터 Prediction을 뽑아, 이것을 Transformer에 들어갈 입력으로 만드는 과정 
     kshot_dict = {} 
     test_dict = {} 
-    for f_data, model in zip(f_list, model_list): 
-        data_file_name = f_data 
+    for data_file_name in model_dict:  
         loaded_data = np.load(f"D:/meta_matching_data/INPUT_DATA/{data_file_name}.npy")
         df = pd.DataFrame(loaded_data, index=pheno_with_iq.index)
-        kshot_dict[f_data] = get_kshot_model_preds(model, df, pheno_with_iq, generator, seed)
-        test_dict[f_data] = get_test_model_preds(model, df, pheno_with_iq, generator, seed)
+        kshot_dict[data_file_name] = get_kshot_model_preds(model_dict[data_file_name], df, pheno_with_iq, generator, seed)
+        test_dict[data_file_name] = get_test_model_preds(model_dict[data_file_name], df, pheno_with_iq, generator, seed)
     
     kshot_preds = list(kshot_dict.values())
     test_preds = list(test_dict.values())
@@ -318,18 +276,19 @@ def transformer_stacking(pheno_with_iq, k_num=100, seed=1):
     kshot_preds_concat = np.stack(kshot_preds, axis=-1) 
     kshot_src = torch.tensor(kshot_preds_concat) 
     print("Base Model Prediction Complete! (KSHOT)")
-    print(f"KSHOT Source size : {kshot_src.size()}")
+    # print(f"KSHOT Source size : {kshot_src.size()}")
 
     test_preds_concat = np.stack(test_preds, axis=-1) 
     test_src = torch.tensor(test_preds_concat) 
     print("Base Model Prediction Complete! (TEST)")
-    print(f"TEST Source size : {test_src.size()}")
+    # print(f"TEST Source size : {test_src.size()}")
+
     
     # Transformer Model Config
     d_orig = kshot_src.size(-1)
-    d_model = 64
+    d_model = d_model
     head = 2
-    d_ff = 64
+    d_ff = d_model
     dropout=0.1
     n_layers = 2
 
@@ -338,15 +297,15 @@ def transformer_stacking(pheno_with_iq, k_num=100, seed=1):
     ##### Transformer TRAINING #####
     _, _, _, _, kshot_df, kshot_pheno, test_df, test_pheno= preprocess_data(df, pheno_with_iq, 0.2, 100, seed)
     
-    # kshot_pheno = kshot_pheno[:, :-1]
+    
     kshot_iq = kshot_pheno[:, -1]
-    # test_pheno = test_pheno[:, :-1]
     test_iq = test_pheno[:, -1]
-    # kshot_dataloader = get_dataloader(kshot_df, kshot_pheno, 100, generator, device)
     kshot_dataloader = get_dataloader(kshot_src, kshot_iq, 100, generator, device)
     test_dataloader = get_dataloader(test_src, test_iq, 100, generator, device)
 
-    num_epochs=10000
+
+
+    num_epochs=5000
     optimizer = optim.AdamW(transformer.parameters(), lr=1e-6, weight_decay=0.01)
     scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=50, T_mult=2, eta_min=1e-08)
     loss_function = nn.MSELoss()
@@ -354,15 +313,14 @@ def transformer_stacking(pheno_with_iq, k_num=100, seed=1):
     print("Transformer Model Load Complete!")
 
 
+
+    #### Transformer Training (KSHOT) #### 
     kshot_losses = []
-    test_losses = []
-    print("Transformer Model Training Start!")
-    best_loss = float("inf")
-    for epoch in range(num_epochs): 
-        #### Transformer Training (KSHOT) #### 
+    print("Transformer Model Training Start!\n\n")
+    for epoch in range(num_epochs):         
         transformer.train() 
         kshot_loss = 0.0 
-
+        kshot_outputs = []
         for inputs, targets in kshot_dataloader:
             optimizer.zero_grad()
             outputs = transformer(inputs) 
@@ -370,45 +328,79 @@ def transformer_stacking(pheno_with_iq, k_num=100, seed=1):
             loss.backward()
             optimizer.step()
             kshot_loss += loss.item() 
+            kshot_outputs.append(outputs)
+            
+        kshot_outputs = torch.cat(kshot_outputs).cpu().detach().numpy() 
+        kshot_pred_df = pd.DataFrame({'prediction' : kshot_outputs.flatten(), 'IQ':kshot_iq.flatten()})
+        kshot_corr = get_corr_score(kshot_pred_df)
+        kshot_cod = get_cod_score(kshot_pred_df)
         
         scheduler.step()
         kshot_loss /= len(kshot_dataloader) 
         kshot_losses.append(kshot_loss) 
-
+        if epoch % 100 == 0 : 
+            print(f"Epoch : {epoch}      \t : Kshot Loss - {kshot_loss:.4f} | Kshot COD - {kshot_cod:.4f} | Kshot Corr - {kshot_corr:.4f}")
+            
         
-        ##### Test #####
-        transformer.eval()
-        test_loss = 0.0 
-
-        test_outputs = [] 
-        with torch.no_grad(): 
-            for inputs, targets in test_dataloader: 
-                outputs = transformer(inputs) 
-                loss = loss_function(outputs, targets) 
-                test_loss += loss.item() 
-                test_outputs.append(outputs)
-
-        test_outputs = torch.cat(test_outputs).cpu().detach().numpy()
-        pred_df = pd.DataFrame({'prediction' : test_outputs.flatten(), 'IQ':test_iq.flatten()})
-        # print(f"test_outputs: {test_outputs[:5]}" )
-
-
-        test_loss /= len(test_dataloader) 
-        test_losses.append(test_loss)
-
-        if best_loss > test_loss: 
-            best_loss = test_loss 
-            test_cod = get_cod_score(pred_df)
-            test_corr = get_corr_score(pred_df)
-            # torch.save(model, model_pth) 
-            print(f"Epoch : {epoch}   Best Model! \t : Kshot Loss - {kshot_loss:.4f} | Test Loss - {test_loss:.4f} ====> COD : {test_cod:.4f} & Corr : {test_corr:.4f}")
-
-        elif epoch % 100 == 0 : 
-            print(f"Epoch : {epoch}               \t : Kshot Loss - {kshot_loss:.4f} | Test Loss - {test_loss:.4f} ====> COD : {test_cod:.4f} & Corr : {test_corr:.4f}")
         
+    ##### Test #####
+    transformer.eval() 
+    
+    
+    # Saving Model 
+    transformer_dir = f"D:/meta_matching_data/model_pth/transformer_{option}/"
+    make_dirs(transformer_dir)
+    model_name = f"{seed}_transformer.pth"
+    torch.save(transformer, transformer_dir+model_name)
+    print("Model Saved!")
+    
+    
+    transformer = torch.load(transformer_dir + model_name)
+    test_loss = 0.0
 
-    return kshot_losses, test_losses 
+    test_outputs = [] 
+    with torch.no_grad(): 
+        for inputs, targets in test_dataloader: 
+            outputs = transformer(inputs) 
+            loss = loss_function(outputs, targets) 
+            test_loss += loss.item() 
+            test_outputs.append(outputs) 
+    
+    test_outputs = torch.cat(test_outputs).cpu().detach().numpy() 
+    pred_df = pd.DataFrame({'prediction' : test_outputs.flatten(), 'IQ':test_iq.flatten()})
+    test_cod = get_cod_score(pred_df) 
+    test_corr = get_corr_score(pred_df) 
+
+    test_loss /= len(test_dataloader) 
+    print(f"Test Loss - {test_loss:.4f}\n\n")
+    print(f"Test Corr - {test_corr:.4f}\n\n")
+    print(f"Test COD - {test_cod:.4f}\n\n")
+
+
+    return test_corr, test_cod
 
 
 
 
+
+def advanced_transformer(pheno_with_iq, f_list, d_model, option, iteration=50): 
+    
+    test_dict = {'corr' : [], 'cod':[]} 
+    
+    for seed in range(1, iteration + 1): 
+        print(f'==========================================Iter : {seed}==========================================')
+        test_corr, test_cod = transformer_stacking(pheno_with_iq, f_list, d_model, option, seed)
+        test_dict['corr'].append(test_corr) 
+        test_dict['cod'].append(test_cod) 
+        
+        
+    test_df = pd.DataFrame(test_dict)
+    csv_dir = 'D:/meta_matching_data/transformer_stacking_csv/'
+    make_dirs(csv_dir)
+    test_df.to_csv(f'D:/meta_matching_data/transformer_stacking_csv/{option}.csv')
+    print(f'D:/meta_matching_data/transformer_stacking_csv/{option}.csv를 생성하였습니다.')
+    
+    return test_df
+        
+        
+    

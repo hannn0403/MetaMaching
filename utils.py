@@ -74,7 +74,15 @@ def set_random_seeds(seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     
-    
+def make_dirs(path): 
+    if not os.path.exists(path): 
+        print(f"{path}를 생성합니다.")
+        os.makedirs(path)
+    else: 
+        print(f"{path}가 존재합니다.")
+
+
+        
 def preprocess_data(df, pheno_with_iq, test_size, k_num, seed): 
     '''
     Shuffling을 진행한 뒤에 Meta-Train set과 Meta-Test set으로 분리한다. 
